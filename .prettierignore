@@ -16,3 +16,6 @@ tests/fixtures/
 src/data/
 .lighthouseci/
 .venv/
+src/lib/sa/tiny_cnn.json
+rtl/rtl_check.json
+reference/simfront_check.json

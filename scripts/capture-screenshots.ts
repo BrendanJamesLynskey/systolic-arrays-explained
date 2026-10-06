@@ -63,6 +63,42 @@ const SHOTS: Shot[] = [
     step: 40,
   },
   { name: "09-model", path: "/model" },
+  {
+    name: "10-tiles-back-to-back",
+    path: "/learn/05-tiling",
+    widget: "tile-stream-widget",
+    step: 9,
+  },
+  {
+    name: "11-bandwidth",
+    path: "/learn/05-tiling",
+    widget: "bandwidth-widget",
+    step: 2,
+  },
+  {
+    name: "12-inside-a-pe",
+    path: "/learn/06-inside-a-pe",
+    widget: "pe-widget",
+    step: 5,
+  },
+  {
+    name: "13-torus-all-reduce",
+    path: "/learn/07-the-tpu",
+    widget: "torus-widget",
+    step: 5,
+  },
+  {
+    name: "14-row-stationary",
+    path: "/learn/08-other-ways",
+    widget: "rs-widget",
+    step: 7,
+  },
+  {
+    name: "15-graph-to-silicon",
+    path: "/learn/09-graph-to-silicon",
+    widget: "lower-widget",
+    step: 39,
+  },
 ];
 
 async function main(): Promise<void> {

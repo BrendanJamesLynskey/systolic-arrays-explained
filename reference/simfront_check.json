@@ -1,0 +1,68 @@
+{
+  "array": 8,
+  "nodes": [
+    {
+      "agree": true,
+      "category": "matmul",
+      "name": "conv",
+      "op": "onnx.Conv",
+      "simfront": [
+        [
+          1,
+          36,
+          27,
+          8
+        ]
+      ],
+      "simfrontCycles": 151,
+      "site": [
+        1,
+        36,
+        27,
+        8
+      ],
+      "siteApprox": 151
+    },
+    {
+      "agree": true,
+      "category": "elementwise",
+      "name": "relu",
+      "op": "onnx.Relu",
+      "simfront": []
+    },
+    {
+      "agree": true,
+      "category": "view",
+      "name": "flatten",
+      "op": "onnx.Flatten",
+      "simfront": []
+    },
+    {
+      "agree": true,
+      "category": "matmul",
+      "name": "fc",
+      "op": "onnx.Gemm",
+      "simfront": [
+        [
+          1,
+          1,
+          288,
+          10
+        ]
+      ],
+      "simfrontCycles": 592,
+      "site": [
+        1,
+        1,
+        288,
+        10
+      ],
+      "siteApprox": 592
+    }
+  ],
+  "ok": true,
+  "simfront": {
+    "commit": "de3acd4d8a7a6a725d1d179ccadaf1f5d619584e",
+    "repo": "https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend"
+  }
+}

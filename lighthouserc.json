@@ -9,7 +9,12 @@
         "http://localhost:3000/learn/01-why-systolic",
         "http://localhost:3000/learn/02-weight-stationary",
         "http://localhost:3000/learn/03-output-and-input-stationary",
-        "http://localhost:3000/learn/04-skew-fill-drain"
+        "http://localhost:3000/learn/04-skew-fill-drain",
+        "http://localhost:3000/learn/05-tiling",
+        "http://localhost:3000/learn/06-inside-a-pe",
+        "http://localhost:3000/learn/07-the-tpu",
+        "http://localhost:3000/learn/08-other-ways",
+        "http://localhost:3000/learn/09-graph-to-silicon"
       ],
       "numberOfRuns": 3
     },

@@ -174,7 +174,9 @@
 .eq-panel .hl-fill,
 .eq-panel .hl-u,
 .eq-panel .hl-n,
-.eq-panel .hl-bw {
+.eq-panel .hl-bw,
+.eq-panel .hl-x,
+.eq-panel .hl-y {
   border-color: #737373;
 }
 .eq-panel[data-hl~="a"] .hl-a,
@@ -187,7 +189,9 @@
 .eq-panel[data-hl~="fill"] .hl-fill,
 .eq-panel[data-hl~="u"] .hl-u,
 .eq-panel[data-hl~="n"] .hl-n,
-.eq-panel[data-hl~="bw"] .hl-bw {
+.eq-panel[data-hl~="bw"] .hl-bw,
+.eq-panel[data-hl~="x"] .hl-x,
+.eq-panel[data-hl~="y"] .hl-y {
   background-color: rgb(0 114 178 / 0.18);
   border-color: #0072b2;
 }

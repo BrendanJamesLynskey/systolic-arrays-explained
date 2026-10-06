@@ -14,6 +14,11 @@ const PAGES = [
   "/learn/02-weight-stationary",
   "/learn/03-output-and-input-stationary",
   "/learn/04-skew-fill-drain",
+  "/learn/05-tiling",
+  "/learn/06-inside-a-pe",
+  "/learn/07-the-tpu",
+  "/learn/08-other-ways",
+  "/learn/09-graph-to-silicon",
 ];
 
 for (const [scheme, width] of [

@@ -1,0 +1,75 @@
+<RsWidget>
+  <Eq
+    label="Output row j, column c, is the sum over filter rows i of a one-dimensional row convolution of input row i plus j with filter row i"
+    tex="\htmlClass{hl-c}{o_{j,c}} = \sum_{i} \htmlClass{hl-p}{\underbrace{\sum_{s} \htmlClass{hl-a}{x_{i+j,\,c+s}}\,\htmlClass{hl-w}{f_{i,s}}}_{\text{PE}(i,\,j)}}"
+  />
+</RsWidget>
+
+<Layer kind="concept">
+
+Weight-, output- and input-stationary are named after the one operand each keeps still. Chen, Emer and Sze's **Eyeriss** (ISCA 2016) asked what a dataflow should keep still when the layer is a convolution, where every number is reused several ways at once: each filter weight across every position of the image, each input pixel by every filter tap that overlaps it, each partial sum across every input channel. Their **row-stationary** dataflow keeps a whole row of each, and the animation runs it.
+
+PE$(i, j)$ holds filter row $i$ and works through input row $i + j$, one multiply per cycle: a one-dimensional convolution of two rows. When it finishes an output column it adds the partial row sum handed down by the PE above and passes the total on, so the PEs of column $j$ together add up the filter's rows into output row $j$. Here a <V of="demo.rs.R" fmt="int" /> × <V of="demo.rs.S" fmt="int" /> filter runs over a <V of="demo.rs.H" fmt="int" /> × <V of="demo.rs.W" fmt="int" /> input on <V of="rs.pes" fmt="int" /> PEs: <V of="rs.macs" fmt="int" /> MACs in <V of="rs.cycles" fmt="int" /> cycles, with only <V of="rs.psumHops" fmt="int" /> partial sums passed between PEs for the <V of="rs.outs" fmt="int" /> outputs. Each filter row stays in its PE for the whole run, each input row is shared along a diagonal of PEs (rows $i + j$), and the partial sums move one short hop at a time.
+
+The survey by Sze, Chen, Yang and Emer (2017) sorts accelerators by what stays put: **weight-stationary** (the TPU's matrix unit, chapter 2), **output-stationary** (chapter 3), **no local reuse** (nothing stays in the PE: every operand comes from a shared global buffer, which can then be larger) and **row-stationary**. The same matrix multiply costs different amounts of buffer traffic, partial-sum movement and register traffic in each, as chapters 3 and 5 counted.
+
+</Layer>
+
+<Layer kind="concept">
+
+**GPU tensor cores.** A GPU does the same matrix multiply with a different machine. Its matrix units are small and many: a warp hands a tensor core whole tiles of $A$ and $B$ from registers through one instruction (`mma.sync` on the A100, `wgmma` on the H100), and the tile's reuse comes from the memory hierarchy, with shared memory and registers holding the tiles the threads load cooperatively from HBM. [GPU Kernels Explained, chapter 7](https://gpu-kernels-explained.vercel.app/learn/07-gemm) builds that GEMM step by step.
+
+|               | Systolic matrix unit (TPU MXU)                                     | GPU tensor cores                                            |
+| ------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
+| Size          | a few large arrays per core (128 × 128 or 256 × 256)               | many small units, fed by warps                              |
+| Operand reuse | inside the array: each value passes through a row or column of PEs | in registers and shared memory, tile by tile                |
+| Who schedules | the compiler, statically (the array is a fixed pipeline)           | warps, dynamically, with many in flight to hide latency     |
+| Programmed in | whole-graph compilation (XLA)                                      | kernels (CUDA, CUTLASS, Triton)                             |
+| Good at       | large dense matrix multiplies at high utilisation                  | the same, plus irregular work the rest of the GPU does well |
+
+In their usual matrix modes both multiply low-precision inputs (bfloat16, FP16, INT8 and narrower) and accumulate in a wider format (chapter 6).
+
+**Computing in or near memory.** The survey's section on near-data processing goes further: put the memory on top of the logic (3D-stacked DRAM such as HBM, with an order of magnitude more bandwidth), put logic into the memory's own die, or compute inside the memory array itself. In a resistive crossbar, each weight is a conductance; apply the inputs as voltages and Kirchhoff's current law sums the products along each wire. The survey calls it "the ultimate form of a weight stationary dataflow, as the weights are always held in place". It trades precision for that: analogue computation is sensitive to device variation, and converting between analogue and digital costs energy at every edge of the array.
+
+</Layer>
+
+<Layer kind="maths">
+
+For a valid 2-D convolution of an $H \times W$ input with an $R \times S$ filter, the output is $E \times F$ with $E = H - R + 1$ and $F = W - S + 1$:
+
+$$
+o_{j,c} = \sum_{i=0}^{R-1} \sum_{s=0}^{S-1} x_{i+j,\,c+s}\, f_{i,s}.
+$$
+
+The inner sum is a one-dimensional convolution of input row $i + j$ with filter row $i$: PE$(i, j)$'s job. It takes $S$ cycles per output column, $FS$ in all, starting $i$ cycles late so that the partial sum from PE$(i - 1, j)$, finished one cycle earlier, is ready when PE$(i, j)$ finishes the same column. The run therefore takes $R - 1 + FS$ cycles on $R \times E$ PEs, does $R \cdot E \cdot F \cdot S$ MACs, and passes $(R - 1) E F$ partial sums. The tests check the output against a direct convolution and these counts against the frames.
+
+</Layer>
+
+<Layer kind="code">
+
+The row-stationary PE, cut from [`src/lib/sa/model.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/model.ts): local cycle $u = t - i$ computes output column $u / S$ and tap $u \bmod S$:
+
+```ts
+const col = Math.floor(u / s);
+const tap = u % s;
+const px = x[i + j]![col + tap]!;
+const pw = f[i]![tap]!;
+acc[i]![j] = (tap === 0 ? 0 : acc[i]![j]!) + px * pw;
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The convolution is one input channel and one filter of small integers, so every PE fits on screen; Eyeriss maps many channels and filters onto its array at once, and folds bigger layers onto it. The comparison table is qualitative: sizes, units and scheduling differ by generation, so follow the links for the current figures.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- AI matrix-multiply unit deck: [Input-stationary and row-stationary (Eyeriss)](https://brendanjameslynskey.github.io/AI_MMUL_Unit/#s7).
+- Google TPU series: [Compute granularity](https://brendanjameslynskey.github.io/Google_TPU_12_TPU_vs_GPU/#slide-02), [Scheduling: static compiler vs dynamic warp](https://brendanjameslynskey.github.io/Google_TPU_12_TPU_vs_GPU/#slide-03) and [Memory: scratchpad vs cache](https://brendanjameslynskey.github.io/Google_TPU_12_TPU_vs_GPU/#slide-04); NVIDIA GPU series: [MMA shapes and APIs](https://brendanjameslynskey.github.io/NVIDIA_GPU_03_Tensor_Cores/#slide-09).
+- Chen, Emer and Sze, [Eyeriss: a spatial architecture for energy-efficient dataflow for convolutional neural networks](https://doi.org/10.1109/ISCA.2016.40), ISCA 2016; Sze, Chen, Yang and Emer, [Efficient processing of deep neural networks: a tutorial and survey](https://arxiv.org/abs/1703.09039), 2017 (sections V and VI: dataflows, and near-data processing).
+- Kung and Leiserson's original [Systolic arrays (for VLSI)](https://www.eecs.harvard.edu/htk/static/files/1978-cmu-cs-report-kung-leiserson.pdf), CMU report CMU-CS-79-103 (1978), which already multiplied band matrices on a hexagonally connected array.
+
+</Callout>

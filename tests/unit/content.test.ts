@@ -33,7 +33,17 @@ export const ARXIV = new Set([
   "1703.09039",
   "1911.09925",
   "1811.02883",
+  "2304.01433",
+  "1905.12322",
 ]);
+
+const LIB = path.join(ROOT, "src/lib/sa");
+const SOURCES = readdirSync(LIB)
+  .filter((f) => f.endsWith(".ts"))
+  .map((f) => squash(readFileSync(path.join(LIB, f), "utf8")));
+const RTL = readdirSync(path.join(ROOT, "rtl"))
+  .filter((f) => f.endsWith(".sv"))
+  .map((f) => readFileSync(path.join(ROOT, "rtl", f), "utf8"));
 
 describe("chapter files", () => {
   it("there is one per section, in order", () => {
@@ -49,19 +59,28 @@ for (const f of FILES) {
     });
 
     it("cuts every TypeScript block from the library source", () => {
-      const model = squash(
-        readFileSync(path.join(ROOT, "src/lib/sa/model.ts"), "utf8"),
-      );
       const blocks = [...src.matchAll(/```ts\n([\s\S]*?)```/g)].map(
         (m) => m[1]!,
       );
       expect(blocks.length).toBeGreaterThan(0);
-      for (const b of blocks) expect(model, b).toContain(squash(b));
+      for (const b of blocks)
+        expect(
+          SOURCES.some((lib) => lib.includes(squash(b))),
+          b,
+        ).toBe(true);
+    });
+
+    it("cuts every SystemVerilog block from the vendored RTL, verbatim", () => {
+      for (const m of src.matchAll(/```systemverilog\n([\s\S]*?)```/g))
+        expect(
+          RTL.some((f) => f.includes(m[1]!)),
+          m[1],
+        ).toBe(true);
     });
 
     it("has no code in a language the tests do not check", () => {
       for (const m of src.matchAll(/```([a-z]*)\n/g))
-        expect(["ts", ""]).toContain(m[1]);
+        expect(["ts", "systemverilog", ""]).toContain(m[1]);
     });
 
     it("compiles every animation equation", () => {
@@ -88,7 +107,9 @@ for (const f of FILES) {
       for (const m of src.matchAll(
         /https:\/\/brendanjameslynskey\.github\.io\/([A-Za-z0-9_]+)\/(#[a-z0-9-]+)?/g,
       )) {
-        expect(m[1], m[0]).toMatch(/^(Google_TPU_\d\d_|AI_MMUL_Unit$)/);
+        expect(m[1], m[0]).toMatch(
+          /^(Google_TPU_\d\d_|NVIDIA_GPU_\d\d_|SimEng_\d\d_|AI_MMUL_Unit$)/,
+        );
         expect(m[2], m[0]).toMatch(/^#(slide-\d\d|s\d+)$/);
       }
       for (const m of src.matchAll(/arxiv\.org\/abs\/([0-9.]+)/g))

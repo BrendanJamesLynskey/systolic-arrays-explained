@@ -27,7 +27,7 @@ FILES = (
     list((ROOT / "content").rglob("*.mdx"))
     + list((ROOT / "src").rglob("*.tsx"))
     + list((ROOT / "src").rglob("*.ts"))
-    + [ROOT / "README.md", ROOT / "reference/systolic.py"]
+    + [ROOT / "README.md", ROOT / "reference/systolic.py", ROOT / "reference/pe.py", ROOT / "reference/torus.py", ROOT / "reference/lower.py"]
 )
 URL = re.compile(r"https?://[^\s\"'`)<>\]}]+")
 

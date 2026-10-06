@@ -1,0 +1,95 @@
+<TileStreamWidget>
+  <Eq
+    label="Tile j plus 1 starts streaming M cycles after tile j, or k j plus 1 cycles after its weights start loading, whichever is later; the load waits for the fetch from HBM"
+    tex="\begin{gathered} S_{j+1} = \max\bigl(S_j + \htmlClass{hl-a}{M},\ L_{j+1} + \htmlClass{hl-w}{k_{j+1}}\bigr) \\ L_{j+1} = \max\bigl(S_j,\ \htmlClass{hl-bw}{F_{j+1}}\bigr) \\ \htmlClass{hl-c}{T} = S_J + M + k_J + n_J - 2 \end{gathered}"
+  />
+</TileStreamWidget>
+
+<Layer kind="concept">
+
+A real layer is much bigger than the array: a 1024 × 1024 weight matrix on a 128 × 128 array is 64 tiles. Chapter 4 ran tiles one after another, each paying its own weight load, fill and drain. This chapter overlaps them, as the TPU does.
+
+The trick is a second, **shadow** weight register in every PE. While tile 1's activations stream through the array, tile 2's weights shift down the columns into the shadow registers, one row per cycle. When the first activation of tile 2 reaches a PE, the PE swaps: the shadow weight becomes the one it multiplies by. That first activation enters on the cycle after tile 1's last one, so the swap ripples across the array as a diagonal, exactly behind the end of tile 1's wavefront. Tile 1's last partial sums drain out of the bottom while tile 2's first ones start at the top.
+
+In the animation $A$ is <V of="demo.stream.M" fmt="int" /> × <V of="demo.stream.K" fmt="int" /> and $B$ is <V of="demo.stream.K" fmt="int" /> × <V of="demo.stream.N" fmt="int" />, on a <V of="demo.stream.array" fmt="int" /> × <V of="demo.stream.array" fmt="int" /> array: <V of="stream.tiles" fmt="int" /> weight tiles (two of $K$ by two of $N$). Back to back they take <V of="stream.cycles" fmt="int" /> cycles (<V of="stream.util" fmt="pct0" /> of the array's MAC slots busy); in sequence they took <V of="stream.seq" fmt="int" /> (<V of="stream.utilSeq" fmt="pct0" />). Switch the weight registers to **single** to see the difference. With a short stream ($M$ below the array's height) the load cannot hide: a tile cannot start before its weights are in, so the gap between tiles becomes $k$ cycles. At $M = 1$, the decode-like case, back to back still beats in sequence (<V of="stream.m1" fmt="int" /> cycles against <V of="stream.m1seq" fmt="int" />), but most of the array idles.
+
+The model does more than draw this. Every cycle it checks that each PE swaps in the weight of the right tile and that every partial sum meets its next product in step; a test moves one tile's load or stream a single cycle earlier and the model stops with an error.
+
+</Layer>
+
+<Layer kind="concept">
+
+The weights have to come from somewhere. Set **HBM words per cycle** to a number and each tile's <V of="stream.tileWords" fmt="int" /> weights must first be fetched from off-chip memory into an on-chip weight buffer (purple bars). With **one** buffer, the next fetch can only start once the previous tile has been shifted into the array, and the fetches show up in the total: <V of="stream.bw1single" fmt="int" /> cycles at one word per cycle. With **two** buffers (ping-pong: fetch into one while the array reads the other) the fetch overlaps the stream: <V of="stream.bw1double" fmt="int" /> cycles, and <V of="stream.bw2" fmt="int" /> at two words per cycle. To hide a fetch completely the memory must deliver a tile's $kn$ weights while the previous tile streams for $\max(M, k)$ cycles: <V of="stream.need" fmt="num" /> words per cycle here.
+
+This is the first TPU's design. Its weights came from off-chip DRAM through a weight FIFO, four tiles deep, and its matrix unit held two tiles of weights, so that the 256 cycles needed to shift a tile in were hidden behind the previous tile's computation (Jouppi et al., 2017, section 2). Its activations lived in a 24 MiB unified buffer on the chip.
+
+</Layer>
+
+<BandwidthWidget>
+  <Eq
+    label="Buffer words per MAC, approximately: weight-stationary one over C plus one over M plus two over R; output-stationary one over C plus one over R plus one over K; input-stationary one over N plus one over C plus two over R"
+    tex="\begin{aligned} \text{WS: } & \htmlClass{hl-a}{\tfrac{1}{C}} + \htmlClass{hl-b}{\tfrac{1}{M}} + \htmlClass{hl-c}{\tfrac{2}{R}} \\ \text{OS: } & \htmlClass{hl-a}{\tfrac{1}{C}} + \htmlClass{hl-b}{\tfrac{1}{R}} + \htmlClass{hl-c}{\tfrac{1}{K}} \\ \text{IS: } & \htmlClass{hl-a}{\tfrac{1}{N}} + \htmlClass{hl-b}{\tfrac{1}{C}} + \htmlClass{hl-c}{\tfrac{2}{R}} \end{aligned}"
+  />
+</BandwidthWidget>
+
+<Layer kind="concept">
+
+Inside the chip the question is the same one chapter 1 asked of off-chip memory: how many words must the on-chip buffer deliver per MAC? Tiling decides it. When a GEMM is cut into tiles, each operand is read again for every tile of the dimension it does not span: in weight-stationary, $A$ is streamed once per column tile of $B$, and a tile that covers only part of $K$ writes partial sums that must be read back and added (the sky bars). Output-stationary keeps each result in its PE until it is complete, so it writes $C$ once, but reads $B$ once per row tile of $A$.
+
+For a layer with $K = N =$ <V of="demo.bw.K" fmt="int" /> and $M = 512$ rows, an 8 × 8 array needs <V of="bw.m512.r8.ws" fmt="num" /> words per MAC in weight-stationary and <V of="bw.m512.r8.os" fmt="num" /> in output-stationary; a 256 × 256 array needs <V of="bw.m512.r256.ws" fmt="num" /> and <V of="bw.m512.r256.os" fmt="num" />. Every doubling of the array roughly halves the traffic per MAC: a bigger array reuses each word more. Switch to $M = 8$ (decode-like: few tokens) and weight-stationary bottoms out at <V of="bw.m8.r256.ws" fmt="num" /> words per MAC on the big array, because every weight is read for only 8 rows. Small batches starve big arrays of reuse, whatever the dataflow.
+
+</Layer>
+
+<Layer kind="maths">
+
+Tile $j$ of a weight-stationary run covers rows $k_0 \ldots k_0 + k_j - 1$ of $B$ and columns $n_0 \ldots n_0 + n_j - 1$, and streams all $M$ rows of $A$. Write $S_j$ for the cycle its first activation enters the array and $L_j$ for the cycle its weights start loading. Column $q$ loads in cycles $L_j + q \ldots L_j + q + k_j - 1$ (the load is skewed like the activations), and PE$(k, q)$ swaps at $S_j + k + q$, when the tile's first activation arrives. The shadow register of PE$(k, q)$ is first overwritten by the next load in cycle $L_{j+1} + q + k$, so the next load may start once this tile has started, $L_{j+1} \ge S_j$; the weights are all in place $k_{j+1}$ cycles after it starts. Two tiles may not feed the same row in the same cycle, so $S_{j+1} \ge S_j + M$. Hence
+
+$$
+S_{j+1} = \max\bigl(S_j + M,\ L_{j+1} + k_{j+1}\bigr), \qquad L_{j+1} = \max(S_j,\ F_{j+1}),
+$$
+
+with $F_{j+1}$ the end of the tile's fetch ($0$ when the weights are already on chip), and the run ends when the last tile's last result leaves: $T = S_J + M + k_J + n_J - 2$. With the weights on chip and $M \ge k$, every tile after the first costs exactly $M$ cycles: the array never stops. The tests check this closed form, and the tiles-in-sequence total of chapter 4 when the shadow registers are switched off, against the cycle-by-cycle model.
+
+For the buffer traffic, with an $R \times C$ array and dimensions that divide evenly, weight-stationary reads $A$ $N/C$ times ($MKN/C$ words), $B$ once ($KN$), writes $MN \cdot K/R$ partial or final results and reads back $MN(K/R - 1)$ partial sums. Dividing by the $MKN$ MACs gives the equations above; the widget uses the exact counts (`tiledWords`), which the Python tests check against the cycle-accurate tiled simulation.
+
+</Layer>
+
+<Layer kind="code">
+
+The schedule, cut from [`src/lib/sa/stream.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/stream.ts) (a port of `stream_schedule` in the Python reference):
+
+```ts
+let load: number;
+if (j === 0) load = ready;
+else if (shadow) load = Math.max(out[j - 1]!.stream, ready);
+else load = Math.max(out[j - 1]!.end, ready);
+let stream = j === 0 ? load + kj : Math.max(out[j - 1]!.stream + m, load + kj);
+```
+
+and the swap inside a PE, from the cycle-by-cycle model:
+
+```ts
+let s = old[0];
+if (hIn !== null && (s === null || s[3] !== hIn[3])) {
+  s = old[3];
+  /* c8 ignore next */
+  if (s === null || s[3] !== hIn[3] || s[1] !== hIn[2])
+    throw new Error("weight not loaded in time");
+}
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The matrices are small seeded integers, the array is 3 × 3 so every PE fits on a phone, and HBM bandwidth is counted in words per cycle with one transfer at a time. Activations are assumed to be in the on-chip buffer already (as in the first TPU's unified buffer); results go to an output buffer that adds split-$K$ partial sums. The buffer-traffic figures count words between the on-chip buffer and the array for tiles run in sequence; they are not energy, and a real compiler also chooses the tile order to reuse what is already on chip.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [How a 256×256 array maps a matmul](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-08), [The 256×256 matrix multiply unit](https://brendanjameslynskey.github.io/Google_TPU_04_Inside_TPU_v1/#slide-02) and [The 24 MiB unified buffer](https://brendanjameslynskey.github.io/Google_TPU_04_Inside_TPU_v1/#slide-03).
+- Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), section 2: the weight FIFO, the double-buffered weight tile and the unified buffer.
+- How a GPU tiles the same GEMM through its memory hierarchy: [GPU Kernels Explained, chapter 7](https://gpu-kernels-explained.vercel.app/learn/07-gemm) and [chapter 10 (split-K and overlap)](https://gpu-kernels-explained.vercel.app/learn/10-split-k-and-overlap).
+
+</Callout>

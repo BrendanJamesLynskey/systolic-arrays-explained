@@ -7,6 +7,7 @@
 import { expect, test, type Locator } from "@playwright/test";
 
 import fx from "../fixtures/sa_fixtures.json";
+import fb from "../fixtures/sa_fixtures_b.json";
 
 import { minus } from "@/lib/format";
 import {
@@ -17,11 +18,25 @@ import {
   utilCaption,
   waveCaption,
 } from "@/lib/sa/captions";
+import {
+  bandwidthCaption,
+  lowerCaption,
+  peCaption,
+  rsCaption,
+  streamCaption,
+  torusCaption,
+  wordsPerMac,
+} from "@/lib/sa/captionsB";
+import type { Layer, LowerStep } from "@/lib/sa/lower";
+import type { PeTrace } from "@/lib/sa/pe";
+import type { StreamTrace } from "@/lib/sa/stream";
+import type { TorusFrame } from "@/lib/sa/torus";
 import type {
   Counts,
   Dataflow,
   Frame,
   ReuseStep,
+  RsTrace,
   ShapeStep,
   Trace,
   UtilStep,
@@ -167,6 +182,113 @@ test("chapter 4: the wavefront and utilisation", async ({ page }) => {
     await show(u, s);
     await expect(caption(u)).toHaveText(
       utilCaption("ws", "shape", sh[s]!, fx.demo.array, fx.demo.array),
+    );
+  }
+});
+
+/** The PEs that multiply in a stream frame, as "r,c". */
+function streamMacs(f: StreamTrace["frames"][number]): string[] {
+  const out: string[] = [];
+  f.pe.forEach((row, r) =>
+    row.forEach((cell, c) => {
+      if (cell[4] !== null) out.push(`${r},${c}`);
+    }),
+  );
+  return out;
+}
+
+test("chapter 5: tiles back to back, and buffer bandwidth", async ({
+  page,
+}) => {
+  await page.goto("/learn/05-tiling");
+  const fig = page.getByTestId("tile-stream-widget");
+  for (const [key, act] of [
+    ["default", null],
+    ["noShadow", "single"],
+  ] as const) {
+    if (act)
+      await change(fig, () => fig.getByRole("radio", { name: act }).click());
+    const t = fb.stream[key] as unknown as StreamTrace;
+    for (const s of [0, 4, 12, t.cycles - 1]) {
+      await show(fig, s);
+      await expect(caption(fig)).toHaveText(streamCaption(t, s));
+      expect(await pageMacs(fig)).toEqual(streamMacs(t.frames[s]!));
+    }
+  }
+  const bw = page.getByTestId("bandwidth-widget");
+  const rows = fb.bandwidth["512"];
+  for (const s of [0, 3, rows.length - 1]) {
+    await show(bw, s);
+    const per = {} as Record<Dataflow, number>;
+    for (const df of ["ws", "os", "is"] as const)
+      per[df] = wordsPerMac(rows[s]![df].words, 512 * 1024 * 1024);
+    await expect(caption(bw)).toHaveText(
+      bandwidthCaption(rows[s]!.array, 512, per),
+    );
+  }
+});
+
+test("chapter 6: the PE pipeline", async ({ page }) => {
+  await page.goto("/learn/06-inside-a-pe");
+  const fig = page.getByTestId("pe-widget");
+  for (const mode of ["bf16", "fp16", "int8"] as const) {
+    if (mode !== "bf16")
+      await change(fig, () =>
+        fig
+          .getByRole("radio", {
+            name: new RegExp(`^${mode === "fp16" ? "FP16" : "INT8"}`),
+          })
+          .click(),
+      );
+    const t = fb.pe[mode] as unknown as PeTrace;
+    for (const s of [0, 3, 6, t.cycles - 1]) {
+      await show(fig, s);
+      await expect(caption(fig)).toHaveText(
+        peCaption(mode, t, fb.peDemo.count, s),
+      );
+    }
+  }
+});
+
+test("chapter 7: all-reduce on the torus", async ({ page }) => {
+  await page.goto("/learn/07-the-tpu");
+  const fig = page.getByTestId("torus-widget");
+  const frames = fb.torus.frames as unknown as TorusFrame[];
+  for (const s of [0, 2, 5, frames.length - 1]) {
+    await show(fig, s);
+    await expect(caption(fig)).toHaveText(torusCaption(frames[s]!, 4, 4));
+    // the links lit are those that carry data in this step
+    const lit = await fig.locator('path[data-active="1"]').count();
+    expect(lit).toBe(s === 0 ? 0 : 16);
+  }
+});
+
+test("chapter 8: row-stationary", async ({ page }) => {
+  await page.goto("/learn/08-other-ways");
+  const fig = page.getByTestId("rs-widget");
+  const t = fx.rs.trace as unknown as RsTrace;
+  for (const s of [0, 4, 9, t.cycles - 1]) {
+    await show(fig, s);
+    await expect(caption(fig)).toHaveText(rsCaption(t, s));
+    const want: string[] = [];
+    t.frames[s]!.pe.forEach((row, i) =>
+      row.forEach((cell, j) => {
+        if (cell[2] !== null) want.push(`${i},${j}`);
+      }),
+    );
+    expect(await pageMacs(fig)).toEqual(want);
+  }
+});
+
+test("chapter 9: lowering the ONNX graph", async ({ page }) => {
+  await page.goto("/learn/09-graph-to-silicon");
+  const fig = page.getByTestId("lower-widget");
+  const layers = fb.lower.layers["8"] as unknown as Layer[];
+  const steps = fb.lower.steps["8"] as unknown as LowerStep[];
+  for (const s of [0, 9, 38, steps.length - 2, steps.length - 1]) {
+    await show(fig, s);
+    await expect(caption(fig)).toHaveText(
+      lowerCaption(steps[s]!, layers, 8, 6, 3),
     );
   }
 });

@@ -47,3 +47,27 @@ export const UtilWidget = dynamic(() => import("./UtilWidget"), {
   ssr: false,
   loading: loading("animation"),
 });
+export const TileStreamWidget = dynamic(() => import("./TileStreamWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});
+export const BandwidthWidget = dynamic(() => import("./BandwidthWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});
+export const PeWidget = dynamic(() => import("./PeWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});
+export const TorusWidget = dynamic(() => import("./TorusWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});
+export const RsWidget = dynamic(() => import("./RsWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});
+export const LowerWidget = dynamic(() => import("./LowerWidget"), {
+  ssr: false,
+  loading: loading("animation"),
+});

@@ -1,0 +1,69 @@
+<TorusWidget>
+  <Eq
+    label="A two-dimensional torus all-reduce takes two times X minus 1 plus two times Y minus 1 steps; a single ring through all X Y chips takes two times X Y minus 1"
+    tex="\begin{gathered} \text{steps}_{\text{torus}} = 2\,\htmlClass{hl-x}{(X - 1)} + 2\,\htmlClass{hl-y}{(Y - 1)} \\ \text{steps}_{\text{ring}} = 2\,(XY - 1) \\ \text{numbers sent per chip} = 2\,(XY - 1) \text{ either way} \end{gathered}"
+  />
+</TorusWidget>
+
+<Layer kind="concept">
+
+A TPU pod is many chips joined by **inter-chip interconnect** (ICI) links into a torus: a grid whose rows and columns wrap around, so every chip has a neighbour in each direction. Training spreads a model across the chips, and after every step the chips must agree on the summed gradients: an **all-reduce**. The animation runs one on <V of="torus.chips" fmt="int" /> chips in a <V of="torus.X" fmt="int" /> × <V of="torus.Y" fmt="int" /> torus, each holding a vector of <V of="torus.chips" fmt="int" /> numbers (one cell per number, darker as it sums more chips' values).
+
+It goes dimension by dimension. **Reduce-scatter along x:** in each row (an x-ring), every chip passes a quarter of its vector to its +x neighbour, which adds it to its own; after $X - 1$ steps each chip owns one quarter summed over its row. **Reduce-scatter along y** does the same down the columns, inside that quarter, until each chip holds one number summed over all <V of="torus.chips" fmt="int" /> chips (outlined). **All-gather along y, then x** passes the finished numbers back round the same rings, copying instead of adding. The whole thing takes <V of="torus.steps" fmt="int" /> steps; one ring through all <V of="torus.chips" fmt="int" /> chips would take <V of="torus.ring" fmt="int" />, though each chip sends the same <V of="torus.perChip" fmt="int" /> numbers either way. The torus wins on the number of steps, and each step's fixed cost (link latency, synchronisation) is paid fewer times: for a 16 × 16 pod, <V of="torus.big" fmt="int" /> steps against <V of="torus.bigRing" fmt="int" />.
+
+This is the textbook version: data moves in one direction round each ring, and one dimension at a time. Real interconnects send both ways on every link and can work on several dimensions at once, which divides the time further; the wrap-around links themselves are what make the rings possible. The TPU v4 paper reports that its 3D torus's wrap-around links double both the bisection bandwidth and the bandwidth of collective operations such as all-reduce, against a mesh without them (Jouppi et al., 2023).
+
+</Layer>
+
+<TpuDiagram />
+
+<Layer kind="concept">
+
+**Inside one chip.** Google describes each TensorCore as "one or more matrix-multiply units (MXUs), a vector unit, and a scalar unit". An MXU is a systolic array of multiply-accumulators, 128 × 128 in the TPU versions before v6e and 256 × 256 in v6e and later, multiplying bfloat16 and accumulating in FP32 (chapter 6). The vector unit does the elementwise work (activation functions, normalisation, the softmax); the scalar unit runs the control flow. Data reaches them from high-bandwidth memory (HBM) beside the die, through on-chip memory that software manages explicitly (VMEM, in the terms of JAX's [Pallas TPU documentation](https://docs.jax.dev/en/latest/pallas/tpu/details.html)).
+
+The generations differ in how many of each they carry. A TPU v4 chip has two TensorCores of four MXUs each, 32 GiB of HBM2 and six ICI links, so that 4,096 chips form a 3D torus; a v5e chip has one TensorCore with four MXUs and 16 GB of HBM, and its pods are 256 chips in a 2D torus (Google Cloud TPU documentation; these change from generation to generation, so check the current pages).
+
+**The first TPU** (2015, inference only) was simpler and is described in the most detail: one 256 × 256 matrix unit of 8-bit MACs, weight-stationary, fed from a 24 MiB unified buffer of activations; weights from 8 GiB of off-chip DRAM through a weight FIFO; 32-bit accumulators below the array; and an activation unit (Jouppi et al., 2017). Chapters 2, 4 and 5 are its matrix unit at small scale.
+
+</Layer>
+
+<Layer kind="maths">
+
+Take an $X \times Y$ torus and a vector of $D$ numbers per chip. Reduce-scatter along $x$ is $X - 1$ steps; in step $s$ chip $x$ sends block $(x - s) \bmod X$ of size $D/X$ to chip $x + 1$, which adds it. By induction, after step $s$ chip $x$'s block $(x - s - 1) \bmod X$ holds the sum of $s + 2$ chips, so after $X - 1$ steps block $(x + 1) \bmod X$ holds all $X$. Reduce-scatter along $y$ then splits that block $Y$ ways, $Y - 1$ steps of size $D/(XY)$; the all-gathers mirror both. Per chip that is
+
+$$
+\text{sent} = 2(X - 1)\frac{D}{X} + 2(Y - 1)\frac{D}{XY} = 2D\,\frac{XY - 1}{XY},
+$$
+
+exactly what one ring of $XY$ chips sends, and the minimum for any all-reduce (Patarasuk and Yuan, 2009). With a per-step cost $\alpha$ and link bandwidth $\beta$, a ring takes $2(XY - 1)(\alpha + D/(XY\beta))$, while the torus takes $2(X - 1)(\alpha + D/(X\beta)) + 2(Y - 1)(\alpha + D/(XY\beta))$: the same bandwidth term, and a latency term of $2(X + Y - 2)\alpha$ instead of $2(XY - 1)\alpha$. The tests run every torus from 2 × 2 to 4 × 4 and check that every chip ends with the sum, that each message goes to a neighbour, and the step and message counts above.
+
+</Layer>
+
+<Layer kind="code">
+
+The plan for the first phase, cut from [`src/lib/sa/torus.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/torus.ts) (chip $x$ sends block $(x - s) \bmod X$ to its $+x$ neighbour), and the three that follow:
+
+```ts
+run("rs-x", xd - 1, (x, y, s) => [[(x + 1) % xd, y], group(mod(x - s, xd))]);
+run("rs-y", yd - 1, (x, y, s) => [
+  [x, (y + 1) % yd],
+  [((x + 1) % xd) * yd + mod(y - s, yd)],
+]);
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The vectors are small integers (one per chip per cell) so the picture stays readable; real gradients are megabytes, cut into the same blocks. Steps are counted, not timed: the model has no link latency or bandwidth. The chip diagram is generic and not to scale. Hardware figures are quoted from Google's documentation and papers and change between generations.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [A block diagram on one slide](https://brendanjameslynskey.github.io/Google_TPU_04_Inside_TPU_v1/#slide-01), [The 2D torus pod](https://brendanjameslynskey.github.io/Google_TPU_05_v2_v3_Training_Era/#slide-07), [Six ICI links: the 3D torus](https://brendanjameslynskey.github.io/Google_TPU_06_v4_OCS_SparseCore/#slide-05), [All-reduce on a 3D torus](https://brendanjameslynskey.github.io/Google_TPU_10_ICI_and_OCS/#slide-07) and [ICI bandwidth across TPU generations](https://brendanjameslynskey.github.io/Google_TPU_10_ICI_and_OCS/#slide-10).
+- Google Cloud: [TPU architecture](https://docs.cloud.google.com/tpu/docs/system-architecture-tpu-vm), [TPU v4](https://docs.cloud.google.com/tpu/docs/v4) and [TPU v5e](https://docs.cloud.google.com/tpu/docs/v5e).
+- Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), ISCA 2017; Jouppi et al., [TPU v4: an optically reconfigurable supercomputer for machine learning with hardware support for embeddings](https://arxiv.org/abs/2304.01433), ISCA 2023; Patarasuk and Yuan, [Bandwidth optimal all-reduce algorithms for clusters of workstations](https://doi.org/10.1016/j.jpdc.2008.09.002), JPDC 2009.
+- How an all-reduce costs time in LLM serving: [LLM Inference Explained, chapter 9 (parallelism)](https://llm-inference-explained.vercel.app/learn/09-parallelism).
+
+</Callout>

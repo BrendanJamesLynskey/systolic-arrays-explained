@@ -1,0 +1,74 @@
+<LowerWidget>
+  <Eq
+    label="A convolution lowered by im2col: M is the output height times width, K is input channels times filter height times width, N is the number of filters"
+    tex="\begin{gathered} \text{Conv} \;\to\; \text{GEMM}: \quad \htmlClass{hl-c}{O = A B} \\ \htmlClass{hl-a}{M = H_{\text{out}} W_{\text{out}}}, \quad \htmlClass{hl-w}{K = C_{\text{in}} R S}, \quad \htmlClass{hl-w}{N = C_{\text{out}}} \end{gathered}"
+  />
+</LowerWidget>
+
+<Layer kind="concept">
+
+A model arrives at an accelerator as a graph of operators, here an ONNX file of four nodes: a convolution, a ReLU, a flatten and a fully connected (Gemm) layer. Before any of it can run on a systolic array, a compiler must **lower** each node to what the hardware does: matrix multiplies for the array, elementwise work for the vector unit, and nothing at all for operations that only reshape.
+
+**The convolution becomes a GEMM.** The trick is **im2col**: for every output pixel, copy the patch of input it sees (every channel, the whole $R \times S$ window) into one row of a matrix $A$. Flatten each filter into one column of $B$. Then the convolution is $A B$: row $p$ of $A$ times column $f$ of $B$ is output pixel $p$ of filter $f$. For this model's <V of="lower.conv.M" fmt="int" /> output pixels, 3 input channels and 3 × 3 filters that is a <V of="lower.conv.M" fmt="int" /> × <V of="lower.conv.K" fmt="int" /> by <V of="lower.conv.K" fmt="int" /> × <V of="lower.conv.N" fmt="int" /> GEMM. The animation builds $A$ one row at a time; the copying costs memory (each input pixel appears in up to 9 rows) but turns the convolution into the one thing the array does well. The site runs this GEMM on its cycle-accurate array and the tests check it against a direct convolution, number for number.
+
+**The GEMMs become tiles.** On an <V of="lower.array" fmt="int" /> × <V of="lower.array" fmt="int" /> array the convolution's $K =$ <V of="lower.conv.K" fmt="int" /> needs <V of="lower.conv.tiles" fmt="int" /> weight tiles, run back to back as in chapter 5: <V of="lower.conv.stream" fmt="int" /> cycles, <V of="lower.conv.util" fmt="pct0" /> of the array busy. The fully connected layer is the opposite case. Its input is a single row (one image), so every one of its <V of="lower.fc.tiles" fmt="int" /> weight tiles is loaded to multiply one row of $A$: <V of="lower.fc.stream" fmt="int" /> cycles and <V of="lower.fc.util" fmt="pct" /> busy, waiting on weight loads. This is the batch-of-one problem of LLM decoding in miniature, and why accelerators batch requests. ReLU's <V of="lower.relu" fmt="int" /> elements go to the vector unit; Flatten moves no data.
+
+</Layer>
+
+<Layer kind="concept">
+
+**Three ways to count the cycles.** The bars under the animation give three numbers for each array layer. _Back to back_ is this site's cycle-accurate model with double-buffered weights (chapter 5). _In sequence_ runs the same tiles one after another (chapter 4): <V of="lower.conv.seqWs" fmt="int" /> cycles for the convolution. _Approximate_ is the formula in the author's [Torch_Sim_Frontend](https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend), a fast event-driven model of a whole accelerator (DMA, buffers, array, vector unit), which charges an output-stationary array $k$ cycles per block of outputs plus one fill and drain: <V of="lower.conv.approx" fmt="int" /> cycles for the convolution, <V of="lower.fc.approx" fmt="int" /> for the fully connected layer.
+
+The approximate formula and the cycle-accurate model agree to within a few per cent on the fully connected layer (<V of="lower.fc.approx" fmt="int" /> against <V of="lower.fc.seqOs" fmt="int" /> for output-stationary tiles in sequence) and differ by more on the convolution, where the formula overlaps every tile's fill and drain while the in-sequence count pays for each. That is the trade a performance model makes: one line of arithmetic per tile instead of a register-level simulation, so it can run whole networks quickly, at the price of an error that this kind of cross-check measures. [`scripts/check_simfront.py`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/scripts/check_simfront.py) runs Torch_Sim_Frontend's own ONNX front end on the same file (at commit <V of="lower.simfrontCommit" fmt="raw" />): its GEMM shapes and its cycle formula <V of="lower.simfrontOk" fmt="raw" /> with this page's.
+
+</Layer>
+
+<Layer kind="maths">
+
+For a convolution with $C_{\text{in}}$ input channels of $H \times W$, $C_{\text{out}}$ filters of $R \times S$, stride 1 and no padding, the output is $C_{\text{out}} \times H_{\text{out}} \times W_{\text{out}}$ with $H_{\text{out}} = H - R + 1$ and $W_{\text{out}} = W - S + 1$. im2col builds
+
+$$
+A_{p,\,(c, r, s)} = x_{c,\; i_p + r,\; j_p + s}, \qquad B_{(c, r, s),\, f} = w_{f, c, r, s}, \qquad p = i_p W_{\text{out}} + j_p,
+$$
+
+so that $(AB)_{p,f} = \sum_{c,r,s} x_{c, i_p + r, j_p + s}\, w_{f,c,r,s} = o_{f, i_p, j_p}$. The GEMM has $M = H_{\text{out}} W_{\text{out}}$ (times the batch), $K = C_{\text{in}} R S$ and $N = C_{\text{out}}$: here $36 \times 27 \times 8$, <V of="lower.conv.macs" fmt="int" /> MACs. Torch_Sim_Frontend's estimate for a GEMM on an $R \times C$ output-stationary array is
+
+$$
+T \approx \text{batch} \cdot \lceil M / R \rceil \cdot \lceil N / C \rceil \cdot K + R + C,
+$$
+
+and the cycle-accurate counts are those of chapters 4 and 5.
+
+</Layer>
+
+<Layer kind="code">
+
+im2col, cut from [`src/lib/sa/lower.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/lower.ts) (a port of `reference/lower.py`, which reads the ONNX file):
+
+```ts
+for (let i = 0; i < h - r + 1; i++)
+  for (let j = 0; j < w - s + 1; j++) {
+    const row: number[] = [];
+    for (let ci = 0; ci < c; ci++)
+      for (let di = 0; di < r; di++)
+        for (let dj = 0; dj < s; dj++) row.push(x[ci]![i + di]![j + dj]!);
+    rows.push(row);
+  }
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The model is tiny (a 3 × 8 × 8 input, 8 filters, 10 outputs) and its weights are small integers stored as floats, so the array can run it exactly; it was written with `onnx.helper`, not trained. The sample image is seeded random integers. Real compilers often avoid materialising im2col (they compute the patches on the fly, or use other convolution algorithms), fuse the ReLU into the array's output path, and choose tile shapes and orders this page does not.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Simulation Engineering Toolkit: [From a graph to tiles](https://brendanjameslynskey.github.io/SimEng_14_Accelerator_Model_in_SimPy/#slide-04), [The timing model: cycle-approximate components](https://brendanjameslynskey.github.io/SimEng_14_Accelerator_Model_in_SimPy/#slide-05) and [Process-based against cycle-based](https://brendanjameslynskey.github.io/SimEng_14_Accelerator_Model_in_SimPy/#slide-10) (deck 14 explains the accelerator model in Torch_Sim_Frontend).
+- [Torch_Sim_Frontend](https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend): front ends for PyTorch and ONNX, and the accelerator model.
+- ONNX: the [Conv operator](https://onnx.ai/onnx/operators/onnx__Conv.html) and the [Gemm operator](https://onnx.ai/onnx/operators/onnx__Gemm.html).
+- Batching and its effect on utilisation in LLM serving: [LLM Inference Explained, chapter 4](https://llm-inference-explained.vercel.app/learn/04-batching).
+
+</Callout>

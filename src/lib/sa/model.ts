@@ -830,6 +830,13 @@ export const DEMO = {
   shape: { M: 32, K: 8, nMax: 40 },
   range: { M: [1, 8], K: [2, 4], N: [2, 4] },
   rs: { H: 6, W: 7, R: 3, S: 3, seedX: 5, seedF: 6 },
+  stream: { M: 6, K: 6, N: 6, array: 3, mRange: [1, 9], bws: [0, 4, 2, 1] },
+  bw: {
+    K: 1024,
+    N: 1024,
+    Ms: [8, 512],
+    arrays: [8, 16, 32, 64, 128, 256],
+  },
 } as const;
 
 export function demoPair(m: number, k: number, n: number): [Matrix, Matrix] {

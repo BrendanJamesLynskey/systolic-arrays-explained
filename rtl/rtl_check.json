@@ -2,10 +2,30 @@
   "cases": [
     {
       "C": [
-        [19, 9, 23, 5],
-        [7, 7, 5, -18],
-        [-7, -10, 20, -2],
-        [8, 2, 15, 6]
+        [
+          19,
+          9,
+          23,
+          5
+        ],
+        [
+          7,
+          7,
+          5,
+          -18
+        ],
+        [
+          -7,
+          -10,
+          20,
+          -2
+        ],
+        [
+          8,
+          2,
+          15,
+          6
+        ]
       ],
       "K": 4,
       "N": 4,
@@ -14,16 +34,41 @@
       "mismatches": 0,
       "modelComputeCycles": 10,
       "name": "n4_k4_small",
-      "range": [-4, 5],
-      "validOutEdges": [10],
+      "range": [
+        -4,
+        5
+      ],
+      "validOutEdges": [
+        10
+      ],
       "values": 224
     },
     {
       "C": [
-        [2361, 7083, 10760, 247],
-        [-3593, -1881, -1101, -14503],
-        [-11250, -10627, -13891, -26041],
-        [-6295, -14042, -12809, -9902]
+        [
+          2361,
+          7083,
+          10760,
+          247
+        ],
+        [
+          -3593,
+          -1881,
+          -1101,
+          -14503
+        ],
+        [
+          -11250,
+          -10627,
+          -13891,
+          -26041
+        ],
+        [
+          -6295,
+          -14042,
+          -12809,
+          -9902
+        ]
       ],
       "K": 7,
       "N": 4,
@@ -32,15 +77,32 @@
       "mismatches": 0,
       "modelComputeCycles": 13,
       "name": "n4_k7_int8",
-      "range": [-128, 127],
-      "validOutEdges": [13],
+      "range": [
+        -128,
+        127
+      ],
+      "validOutEdges": [
+        13
+      ],
       "values": 272
     },
     {
       "C": [
-        [-11, 6, -1],
-        [19, -7, -14],
-        [16, -19, -14]
+        [
+          -11,
+          6,
+          -1
+        ],
+        [
+          19,
+          -7,
+          -14
+        ],
+        [
+          16,
+          -19,
+          -14
+        ]
       ],
       "K": 5,
       "N": 3,
@@ -49,11 +111,74 @@
       "mismatches": 0,
       "modelComputeCycles": 9,
       "name": "n3_k5_small",
-      "range": [-4, 5],
-      "validOutEdges": [9],
+      "range": [
+        -4,
+        5
+      ],
+      "validOutEdges": [
+        9
+      ],
       "values": 117
     }
   ],
+  "mac": [
+    {
+      "dots": 2,
+      "edges": 11,
+      "mismatches": 0,
+      "mode": "fp16",
+      "name": "mac_fp16_demo",
+      "ops": 8,
+      "valid": 8,
+      "values": 99
+    },
+    {
+      "dots": 2,
+      "edges": 11,
+      "mismatches": 0,
+      "mode": "int8",
+      "name": "mac_int8_demo",
+      "ops": 8,
+      "valid": 8,
+      "values": 99
+    },
+    {
+      "dots": 25,
+      "edges": 403,
+      "mismatches": 0,
+      "mode": "fp16",
+      "name": "mac_fp16_wide",
+      "ops": 400,
+      "valid": 331,
+      "values": 3627
+    },
+    {
+      "dots": 4,
+      "edges": 403,
+      "mismatches": 0,
+      "mode": "fp16",
+      "name": "mac_fp16_long",
+      "ops": 400,
+      "valid": 316,
+      "values": 3627
+    },
+    {
+      "dots": 25,
+      "edges": 403,
+      "mismatches": 0,
+      "mode": "int8",
+      "name": "mac_int8_rand",
+      "ops": 400,
+      "valid": 319,
+      "values": 3627
+    }
+  ],
+  "macSource": {
+    "commit": "b37984fc89019d999f6866492433b6cad0977ae8",
+    "copied": "modules fp16_mul_to_fp32, fp32_add and mac_unit_mixed_precision (the design, up to the TESTBENCH banner), unchanged",
+    "path": "02_datapath_design/coding_challenges/challenge_02_mac_unit_fp16_int8.sv",
+    "repo": "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators"
+  },
   "ok": true,
   "simulator": "Verilator 5.020",
   "source": {
