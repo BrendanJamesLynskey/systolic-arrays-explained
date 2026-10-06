@@ -14,6 +14,12 @@ const ANIMATIONS = [
   ["/learn/03-output-and-input-stationary", "os-widget"],
   ["/learn/04-skew-fill-drain", "wavefront-widget"],
   ["/learn/04-skew-fill-drain", "util-widget"],
+  ["/learn/05-tiling", "tile-stream-widget"],
+  ["/learn/05-tiling", "bandwidth-widget"],
+  ["/learn/06-inside-a-pe", "pe-widget"],
+  ["/learn/07-the-tpu", "torus-widget"],
+  ["/learn/08-other-ways", "rs-widget"],
+  ["/learn/09-graph-to-silicon", "lower-widget"],
 ] as const;
 
 async function step(fig: Locator): Promise<number> {

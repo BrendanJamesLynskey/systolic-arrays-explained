@@ -121,7 +121,25 @@ export default function AboutPage(): JSX.Element {
             <V of="rtl.simulator" fmt="raw" /> and compares every accumulator
             after every clock edge with the model:{" "}
             <V of="rtl.values" fmt="int" /> values,{" "}
-            <V of="rtl.mismatches" fmt="int" /> mismatches. CI repeats it.
+            <V of="rtl.mismatches" fmt="int" /> mismatches. It also runs the
+            author&apos;s three-stage MAC unit, the PE of chapter 6, and
+            compares every pipeline register after every edge:{" "}
+            <V of="mac.values" fmt="int" /> values,{" "}
+            <V of="mac.mismatches" fmt="int" /> mismatches. CI repeats both.
+          </li>
+          <li>
+            <strong>Against another simulator.</strong> Chapter 9&apos;s
+            lowering of an ONNX model gives the same GEMM shapes and cycle
+            estimates as the author&apos;s Torch_Sim_Frontend run on the same
+            file (
+            <a href={repoFile("scripts/check_simfront.py")} className={A}>
+              scripts/check_simfront.py
+            </a>
+            , recorded in{" "}
+            <a href={repoFile("reference/simfront_check.json")} className={A}>
+              reference/simfront_check.json
+            </a>
+            ).
           </li>
           <li>
             <strong>Exact parity.</strong>{" "}
@@ -154,9 +172,16 @@ export default function AboutPage(): JSX.Element {
             in the drawings; the RTL check also runs full-range INT8.
           </li>
           <li>
-            Each pass is counted on its own: the weights load before the stream
-            and passes do not overlap. Real arrays double-buffer the weights and
-            run tiles back to back.
+            In chapters 1 to 4 each pass is counted on its own: the weights load
+            before the stream and passes do not overlap. Chapter 5 adds
+            double-buffered weights and runs tiles back to back.
+          </li>
+          <li>
+            Chapters 5 to 9 use a small array and small matrices so every PE
+            fits on a phone; HBM bandwidth is in words per cycle; the PE&apos;s
+            operands have small exponents; the all-reduce is counted in steps,
+            not timed; the TPU diagram is generic; the ONNX model was written by
+            hand with small integer weights, not trained.
           </li>
           <li>
             Output-stationary results drain down the columns one row per cycle;

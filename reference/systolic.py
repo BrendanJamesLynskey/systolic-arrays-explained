@@ -521,6 +521,231 @@ def simulate_tiled(dataflow: str, a, b, rows: int, cols: int) -> dict[str, Any]:
     return {"C": result, "cycles": cyc, "totals": totals, "tiles": len(tiles(dataflow, m, k, n, rows, cols))}
 
 
+def tiled_words(dataflow: str, m: int, k: int, n: int, rows: int, cols: int) -> dict[str, int]:
+    """Buffer traffic of a tiled GEMM, by operand (tiles in sequence).
+
+    ``a`` and ``b``: words of A and B read; ``c``: results written (a tile
+    over part of K writes partial sums); ``acc``: partial sums read back to
+    be added (split K). ``a + b`` and ``c`` equal ``simulate_tiled``'s
+    reads and writes and ``acc`` its accReads (tests/python).
+    """
+    out = {"a": 0, "b": 0, "c": 0, "acc": 0}
+    seen: set[tuple[int, int]] = set()
+    for m0, m1, k0, k1, n0, n1 in tiles(dataflow, m, k, n, rows, cols):
+        mt, kt, nt = m1 - m0, k1 - k0, n1 - n0
+        out["a"] += mt * kt
+        out["b"] += kt * nt
+        out["c"] += mt * nt
+        if (m0, n0) in seen:
+            out["acc"] += mt * nt
+        seen.add((m0, n0))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Weight-stationary tiles back to back: double-buffered weights (chapter 5)
+# ---------------------------------------------------------------------------
+
+
+def stream_schedule(
+    m: int,
+    k: int,
+    n: int,
+    rows: int,
+    cols: int,
+    bw: int | None = None,
+    buffers: int = 2,
+    shadow: bool = True,
+) -> dict[str, Any]:
+    """When each weight-stationary tile is fetched, loaded and streamed.
+
+    Tile j (``tiles("ws", ...)`` order) holds k_j x n_j weights and streams
+    all M rows of A.
+
+    * **Fetch** (only when ``bw`` is given): the tile's k_j n_j weights come
+      from off-chip memory at ``bw`` words a cycle into one of ``buffers``
+      on-chip weight buffers; a buffer is free again once the tile it held
+      has been shifted into the array. One transfer at a time.
+    * **Load**: column q shifts the tile's weights down a chain of shadow
+      registers, one row per cycle, starting at L_j + q (k_j cycles).
+    * **Stream**: row p of A enters array row kk at S_j + p + kk. A PE swaps
+      its shadow weight in when the tile's first activation reaches it.
+
+    With ``shadow`` (double-buffered weight registers, the TPU's scheme)
+    the next tile's weights load while this tile streams:
+
+        L_j = max(S_{j-1}, F_j),   S_j = max(S_{j-1} + M, L_j + k_j)
+
+    (F_j: the fetch has finished). Without it the next load waits for the
+    array to empty: L_j = E_{j-1}, which is ``tiled_cycles``. A tile ends
+    at E_j = S_j + M + k_j + n_j - 2; the run takes E_J cycles.
+    """
+    ts = tiles("ws", m, k, n, rows, cols)
+    out = []
+    dma_free = 0  # when the transfer engine is next free
+    for j, (_, _, k0, k1, n0, n1) in enumerate(ts):
+        kj, nj = k1 - k0, n1 - n0
+        if bw is None:
+            fetch = None
+            ready = 0
+        else:
+            # the buffer this tile uses is free once tile j - buffers is loaded
+            free = 0 if j < buffers else out[j - buffers]["loadEnd"]
+            start = max(dma_free, free)
+            end = start + _ceil_div(kj * nj, bw)
+            dma_free = end
+            fetch = [start, end]
+            ready = end
+        if j == 0:
+            load = ready
+        elif shadow:
+            load = max(out[j - 1]["stream"], ready)
+        else:
+            load = max(out[j - 1]["end"], ready)
+        stream = load + kj if j == 0 else max(out[j - 1]["stream"] + m, load + kj)
+        if not shadow and j > 0:
+            stream = load + kj
+        out.append(
+            {
+                "j": j,
+                "k0": k0,
+                "k": kj,
+                "n0": n0,
+                "n": nj,
+                "fetch": fetch,
+                "load": load,
+                # the last column finishes loading in cycle load + n - 1 + k - 1
+                "loadEnd": load + nj - 1 + kj,
+                "stream": stream,
+                "end": stream + m + kj + nj - 2,
+            }
+        )
+    return {"tiles": out, "cycles": out[-1]["end"], "M": m, "K": k, "N": n, "rows": rows, "cols": cols}
+
+
+def simulate_ws_stream(
+    a: list[list[int]],
+    b: list[list[int]],
+    rows: int,
+    cols: int,
+    bw: int | None = None,
+    buffers: int = 2,
+    shadow: bool = True,
+) -> dict[str, Any]:
+    """Weight-stationary tiles back to back on one array, cycle by cycle.
+
+    Every PE has a stationary weight ``s`` and a shadow weight ``sh``; a PE
+    is [s, h, v, sh, mac] and every tag ends with its tile's index: weights
+    [value, k, n, tile], activations [value, m, k, tile], partial sums
+    [value, m, n, terms, tile]. The model follows ``stream_schedule`` and
+    checks, as it goes, that each PE swaps in the right weight and that
+    every partial sum meets its next product in step (the schedule is
+    hazard-free); results leave the bottom of the tile's block and are added
+    into the output buffer (a split-K partial reads the buffer: ``accReads``).
+    """
+    m, k, n = len(a), len(b), len(b[0])
+    sched = stream_schedule(m, k, n, rows, cols, bw, buffers, shadow)
+    ts = sched["tiles"]
+    total = sched["cycles"]
+    cnt = {"macs": 0, "reads": 0, "writes": 0, "accReads": 0, "hops": 0, "fetched": 0}
+    frames: list[dict[str, Any]] = []
+    prev = [[[None, None, None, None, None] for _ in range(cols)] for _ in range(rows)]
+    result = [[0] * n for _ in range(m)]
+    seen = [[False] * n for _ in range(m)]
+    for t in range(total):
+        grid = [[[None, None, None, None, None] for _ in range(cols)] for _ in range(rows)]
+        in_left: list[Any] = [None] * rows
+        in_top: list[Any] = [None] * cols
+        load_step: list[int | None] = [None] * cols
+        for tl in ts:
+            for q in range(tl["n"]):
+                l = t - tl["load"] - q
+                if 0 <= l < tl["k"]:
+                    kk = tl["k"] - 1 - l
+                    if in_top[q] is not None:
+                        raise AssertionError("two tiles load one column at once")  # pragma: no cover
+                    in_top[q] = [b[tl["k0"] + kk][tl["n0"] + q], tl["k0"] + kk, tl["n0"] + q, tl["j"]]
+                    load_step[q] = l
+                    cnt["reads"] += 1
+            for kk in range(tl["k"]):
+                p = t - tl["stream"] - kk
+                if 0 <= p < m:
+                    if in_left[kk] is not None:
+                        raise AssertionError("two tiles feed one row at once")  # pragma: no cover
+                    in_left[kk] = [a[p][tl["k0"] + kk], p, tl["k0"] + kk, tl["j"]]
+                    cnt["reads"] += 1
+        out: list[list[int]] = []
+        for kk in range(rows):
+            for q in range(cols):
+                cell = grid[kk][q]
+                old = prev[kk][q]
+                # the shadow chain: rows the load has reached shift down
+                ls = load_step[q]
+                if ls is not None and kk <= ls:
+                    cell[3] = in_top[q] if kk == 0 else prev[kk - 1][q][3]
+                    if kk > 0:
+                        cnt["hops"] += 1
+                else:
+                    cell[3] = old[3]
+                # the activation arriving from the left
+                h_in = in_left[kk] if q == 0 else prev[kk][q - 1][1]
+                if h_in is not None and q > 0:
+                    cnt["hops"] += 1
+                if h_in is not None and q >= ts[h_in[3]]["n"]:
+                    h_in = None  # past the tile's last column: not latched
+                cell[1] = h_in
+                s = old[0]
+                if h_in is not None and (s is None or s[3] != h_in[3]):
+                    s = old[3]  # swap the shadow weight in
+                    if s is None or s[3] != h_in[3] or s[1] != h_in[2]:
+                        raise AssertionError("weight not loaded in time")  # pragma: no cover
+                cell[0] = s
+                if h_in is None:
+                    continue
+                tl = ts[h_in[3]]
+                p = h_in[1]
+                nn = tl["n0"] + q
+                if kk == 0:
+                    p_val, terms = 0, 0
+                else:
+                    above = prev[kk - 1][q][2]
+                    if above is None or above[1] != p or above[2] != nn or above[4] != h_in[3]:
+                        raise AssertionError("partial sum out of step")  # pragma: no cover
+                    p_val, terms = above[0], above[3]
+                    cnt["hops"] += 1
+                cell[4] = [h_in[0], s[0]]
+                cnt["macs"] += 1
+                cell[2] = [p_val + h_in[0] * s[0], p, nn, terms + 1, h_in[3]]
+                if kk == tl["k"] - 1:
+                    val = cell[2][0]
+                    if seen[p][nn]:
+                        cnt["accReads"] += 1
+                    result[p][nn] += val
+                    seen[p][nn] = True
+                    out.append([p, nn, val])
+                    cnt["writes"] += 1
+        for tl in ts:
+            if tl["fetch"] is not None and tl["fetch"][0] <= t < tl["fetch"][1]:
+                words = tl["k"] * tl["n"]
+                dur = tl["fetch"][1] - tl["fetch"][0]
+                i = t - tl["fetch"][0]
+                cnt["fetched"] += words * (i + 1) // dur - words * i // dur
+        frames.append({"t": t, "pe": grid, "inL": in_left, "inT": in_top, "out": out, "cnt": dict(cnt)})
+        prev = grid
+    return {
+        "M": m,
+        "K": k,
+        "N": n,
+        "rows": rows,
+        "cols": cols,
+        "cycles": total,
+        "C": result,
+        "schedule": sched,
+        "frames": frames,
+        "totals": dict(cnt),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Higher-level views the chapters draw
 # ---------------------------------------------------------------------------
@@ -689,6 +914,11 @@ DEMO: dict[str, Any] = {
     "range": {"M": [1, 8], "K": [2, 4], "N": [2, 4]},
     # row-stationary reference: 6 x 7 input, 3 x 3 filter
     "rs": {"H": 6, "W": 7, "R": 3, "S": 3, "seedX": 5, "seedF": 6},
+    # chapter 5: four weight tiles back to back on a 3 x 3 array; the
+    # widget's choices (bandwidth 0 = weights already on chip)
+    "stream": {"M": 6, "K": 6, "N": 6, "array": 3, "mRange": [1, 9], "bws": [0, 4, 2, 1]},
+    # chapter 5: buffer traffic of a 1024-wide layer against array size
+    "bw": {"K": 1024, "N": 1024, "Ms": [8, 512], "arrays": [8, 16, 32, 64, 128, 256]},
 }
 
 

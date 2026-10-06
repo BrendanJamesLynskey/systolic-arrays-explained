@@ -7,7 +7,7 @@
  */
 import Link from "next/link";
 
-import { COMING, SECTIONS } from "@/lib/mdx/sections";
+import { SECTIONS } from "@/lib/mdx/sections";
 import { KERNELS_URL, TPU_HUB } from "@/lib/site";
 
 export const metadata = {
@@ -65,17 +65,6 @@ export default function LearnIndex(): JSX.Element {
               {s.summary}
             </p>
           </li>
-        ))}
-      </ol>
-      <h2 className="mt-10 text-sm font-medium uppercase tracking-widest text-neutral-500 dark:text-neutral-400">
-        Coming next
-      </h2>
-      <ol
-        start={SECTIONS.length + 1}
-        className="mt-3 list-decimal space-y-1 pl-9 text-sm text-neutral-600 dark:text-neutral-400"
-      >
-        {COMING.map((t) => (
-          <li key={t}>{t}</li>
         ))}
       </ol>
     </main>

@@ -1,0 +1,88 @@
+<PeWidget>
+  <Eq
+    label="The accumulator becomes the FP32 rounding of the accumulator plus a times b; the product itself is exact"
+    tex="\htmlClass{hl-acc}{\mathrm{acc}} \leftarrow \mathrm{RN}_{32}\bigl(\htmlClass{hl-acc}{\mathrm{acc}} + \htmlClass{hl-p}{\htmlClass{hl-a}{a} \cdot \htmlClass{hl-b}{b}}\bigr), \qquad \htmlClass{hl-p}{a \cdot b} \text{ exact in FP32}"
+  />
+</PeWidget>
+
+<Layer kind="concept">
+
+Every chapter so far drew a PE as a box that multiplies and adds in one cycle. Inside, it is a small pipeline, and this animation is one: the author's mixed-precision MAC unit, a SystemVerilog design with three stages, run cycle by cycle by this site's model of it.
+
+1. **Stage 1** latches the two operands, $a$ (an activation) and $b$ (a weight), with a `valid` bit and a `clear` bit that marks the first term of a new dot product.
+2. **Stage 2** multiplies them. For two bfloat16 numbers the 8-bit significands (7 stored bits plus the hidden 1) multiply into at most 16 bits, which FP32's 24-bit significand holds exactly, so the product needs no rounding. FP16's 11-bit significands give 22 bits: still exact. INT8 × INT8 fits 16 bits.
+3. **Stage 3** adds the product to the accumulator. This is the only place the PE rounds: the smaller of the two numbers is shifted right to line up the binary points, the sum is rounded back to 24 significant bits (to nearest, ties to even), and anything that would be subnormal is flushed to zero. In INT8 mode the accumulator is a 32-bit integer that saturates instead of wrapping.
+
+Each colour band in the picture is a field of the number: sign (purple), exponent (sky), mantissa (green); a lit cell is a 1 bit. The two dot products of <V of="pe.every" fmt="int" /> terms run back to back, and the second starts on the cycle the `clear` bit reaches stage 3: no bubble between them. In FP16 mode, <V of="pe.fp16.rounded" fmt="int" /> of the demonstration's adds round; the caption shows the exact sum next to the stored one whenever they differ.
+
+The pipeline is why the arrays in chapters 2 to 5 can run at a high clock rate: each stage does a third of the work. It adds latency (a product reaches the accumulator three cycles after its operands arrive) but not cost per MAC, because a new pair enters every cycle.
+
+</Layer>
+
+<Layer kind="concept">
+
+**Why bfloat16 in and FP32 out.** bfloat16 is the top half of an FP32: the same 8-bit exponent, so the same range, but only 7 stored mantissa bits. Google's TPUs multiply in bfloat16 and accumulate in FP32 by default (Google Cloud TPU documentation), and Kalamkar et al. (2019) found that training with bfloat16 tensors reached the same results as FP32 across image, speech, language and recommendation models, in the same number of iterations and with no change of hyperparameters. The narrow mantissa makes the multiplier small (Google's [bfloat16 article](https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus) notes that a multiplier's size scales with the square of the mantissa width) while the wide accumulator keeps the long sums of a matrix multiply accurate. Why a long sum needs the extra bits, and what it does to the error, is chapter 3 of [Numerics Explained](https://numerics-explained.vercel.app/learn/03-accumulation); how formats from INT8 to FP4 map onto hardware is its [chapter 10](https://numerics-explained.vercel.app/learn/10-hardware).
+
+**Checked against the RTL.** The site's Python model of this PE (`reference/pe.py`) is checked against the RTL itself: [`rtl/check_rtl.py`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/check_rtl.py) builds the vendored design in <V of="rtl.simulator" fmt="raw" />, drives <V of="mac.cases" fmt="int" /> sequences (<V of="mac.ops" fmt="int" /> operations, FP16 and INT8, with idle cycles and exponents across FP16's whole normal range), and compares every pipeline register after every clock edge: <V of="mac.values" fmt="int" /> values, <V of="mac.mismatches" fmt="int" /> mismatches. The bfloat16 mode is this site's addition on the same pipeline (the RTL has FP16 and INT8 modes); it is checked against NumPy's float32 arithmetic instead.
+
+</Layer>
+
+<Layer kind="maths">
+
+A bfloat16 number with sign $s$, biased exponent $e$ and mantissa $m$ (7 bits) is $(-1)^s \cdot (1 + m/2^7) \cdot 2^{e - 127}$. The product of two is $(-1)^{s_a \oplus s_b} \cdot (2^7 + m_a)(2^7 + m_b) \cdot 2^{e_a + e_b - 254 - 14}$: the significand product is an integer below $2^{16}$, so it is exactly representable in FP32 (24 bits) as long as the exponent stays in range. The adder then computes
+
+$$
+\mathrm{acc}' = \mathrm{RN}_{32}(\mathrm{acc} + p),
+$$
+
+the exact sum rounded once. The model computes the sum in double precision (53 bits) and rounds that to FP32; for addition this double rounding cannot change the result, because $53 \ge 2 \cdot 24 + 2$ (Figueroa, 1995). The RTL gets the same answer from three extra bits below the significand (guard, round and a sticky OR of everything shifted out), and the comparison above confirms it on every add.
+
+</Layer>
+
+<Layer kind="code">
+
+The rounding step of the RTL's FP32 adder, from [`rtl/mac_unit.sv`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/mac_unit.sv) (vendored unchanged from the author's [Interview_RTL_LLM_Accelerators](https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators) repository):
+
+```systemverilog
+        // Round to nearest, ties to even: guard = norm_sig[2],
+        // round|sticky = norm_sig[1:0], LSB of the kept mantissa = norm_sig[3]
+        round_up    = norm_sig[2] & ((|norm_sig[1:0]) | norm_sig[3]);
+        rounded_sig = norm_sig[26:3] + {23'd0, round_up};
+```
+
+Stage 3's choice between starting a new dot product and adding to the old one:
+
+```systemverilog
+        if (s2_clear && s2_mode) begin
+            // Clear then accumulate (or just clear to +0.0 if no valid data)
+            fp32_acc_next = s2_valid ? s2_fp32_product : 32'h00000000;
+        end else if (s2_valid && s2_mode) begin
+            fp32_acc_next = fp32_add_result;
+```
+
+The same step in the site's TypeScript model, cut from [`src/lib/sa/pe.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/pe.ts):
+
+```ts
+export function fp32Add(acc: number, p: number): number {
+  const r = f32Bits(f32Value(acc) + f32Value(p));
+  const v = f32Value(r);
+  if (v === 0 || Math.abs(v) < FP32_MIN_NORMAL) return 0;
+  return r;
+}
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The operands are random normal numbers with small exponents (bfloat16 exponents from −4 to 4, FP16 from −3 to 3), chosen so the numbers stay readable; Inf, NaN and subnormal inputs are outside the model (the RTL handles them, and its own testbench checks them). A PE in a real systolic array also passes $a$ to its right and the partial sum down; this unit is the arithmetic inside, run as a stand-alone dot-product engine.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [bfloat16, Google Brain's numeric](https://brendanjameslynskey.github.io/Google_TPU_05_v2_v3_Training_Era/#slide-03) and [Accumulator widths and numerical stability](https://brendanjameslynskey.github.io/Google_TPU_09_Memory_and_Numerics/#slide-09).
+- Kalamkar et al., [A study of BFLOAT16 for deep learning training](https://arxiv.org/abs/1905.12322), 2019; Google Cloud, [The bfloat16 numerical format](https://docs.cloud.google.com/tpu/docs/bfloat16).
+- The author's [MAC unit challenge](https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators/blob/b37984fc89019d999f6866492433b6cad0977ae8/02_datapath_design/coding_challenges/challenge_02_mac_unit_fp16_int8.sv), with its own testbench (specials, saturation and 50 random FP16 tiles).
+
+</Callout>

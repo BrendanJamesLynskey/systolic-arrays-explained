@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators",
+  "path": "02_datapath_design/coding_challenges/challenge_02_mac_unit_fp16_int8.sv",
+  "commit": "b37984fc89019d999f6866492433b6cad0977ae8",
+  "copied": "modules fp16_mul_to_fp32, fp32_add and mac_unit_mixed_precision (the design, up to the TESTBENCH banner), unchanged"
+}

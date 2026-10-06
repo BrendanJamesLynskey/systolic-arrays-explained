@@ -48,6 +48,13 @@ export const DATAFLOW_COLOUR = {
   is: OKABE_ITO.blue,
 } as const;
 
+/** The fields of a floating-point number: Numerics Explained's colours. */
+export const FIELD_COLOUR = {
+  sign: OKABE_ITO.purple,
+  exp: OKABE_ITO.sky,
+  mant: OKABE_ITO.green,
+} as const;
+
 /** States of an element in an animation. */
 export const STATE_COLOUR = {
   active: OKABE_ITO.blue,

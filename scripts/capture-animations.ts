@@ -50,6 +50,36 @@ const CLIPS: Clip[] = [
     widget: "wavefront-widget",
     fps: 3,
   },
+  {
+    name: "tiles-back-to-back",
+    path: "/learn/05-tiling",
+    widget: "tile-stream-widget",
+    fps: 3,
+  },
+  {
+    name: "inside-a-pe",
+    path: "/learn/06-inside-a-pe",
+    widget: "pe-widget",
+    fps: 1,
+  },
+  {
+    name: "torus-all-reduce",
+    path: "/learn/07-the-tpu",
+    widget: "torus-widget",
+    fps: 1,
+  },
+  {
+    name: "row-stationary",
+    path: "/learn/08-other-ways",
+    widget: "rs-widget",
+    fps: 2,
+  },
+  {
+    name: "graph-to-silicon",
+    path: "/learn/09-graph-to-silicon",
+    widget: "lower-widget",
+    fps: 4,
+  },
 ];
 
 // `pnpm animations outliers gptq` records only the named clips

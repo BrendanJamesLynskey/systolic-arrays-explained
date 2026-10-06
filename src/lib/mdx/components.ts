@@ -14,7 +14,14 @@ import {
   CompareWidget,
   WavefrontWidget,
   UtilWidget,
+  TileStreamWidget,
+  BandwidthWidget,
+  PeWidget,
+  TorusWidget,
+  RsWidget,
+  LowerWidget,
 } from "@/components/interactive/lazy";
+import { TpuDiagram } from "@/components/viz/TpuDiagram";
 import { Eq } from "@/components/mdx/Eq";
 import { V } from "@/components/mdx/V";
 import { Callout } from "@/components/ui/Callout";
@@ -33,4 +40,11 @@ export const mdxComponents: NonNullable<MDXRemoteProps["components"]> = {
   CompareWidget,
   WavefrontWidget,
   UtilWidget,
+  TileStreamWidget,
+  BandwidthWidget,
+  PeWidget,
+  TorusWidget,
+  RsWidget,
+  LowerWidget,
+  TpuDiagram,
 };

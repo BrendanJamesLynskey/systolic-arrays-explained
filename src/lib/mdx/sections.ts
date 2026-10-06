@@ -35,15 +35,36 @@ export const SECTIONS = [
     summary:
       "Why the inputs arrive as a staircase, how long the array takes to fill and empty, and what that does to utilisation as the matrices grow or stop fitting.",
   },
-] as const;
-
-/** The chapters part B of the brief adds (listed on /learn, not linked yet). */
-export const COMING = [
-  "Tiling big GEMMs",
-  "Inside a PE",
-  "The TPU",
-  "Other ways to build it",
-  "From graph to silicon",
+  {
+    slug: "05-tiling",
+    title: "Tiling big GEMMs",
+    summary:
+      "A matrix bigger than the array, cut into weight tiles and run back to back: double-buffered weights hide each tile's load, and the dataflow decides how many words the buffer must deliver.",
+  },
+  {
+    slug: "06-inside-a-pe",
+    title: "Inside a PE",
+    summary:
+      "One processing element, bit by bit: a three-stage MAC that multiplies bfloat16 or FP16 exactly and accumulates in FP32, checked register for register against the author's RTL.",
+  },
+  {
+    slug: "07-the-tpu",
+    title: "The TPU",
+    summary:
+      "The matrix units in a chip (MXU, vector and scalar units, on-chip memory, HBM) and the chips in a pod: an all-reduce on a 2-D torus, step by step.",
+  },
+  {
+    slug: "08-other-ways",
+    title: "Other ways to build it",
+    summary:
+      "GPU tensor cores against systolic arrays, Eyeriss's dataflow taxonomy with row-stationary animated, and computing in or near memory.",
+  },
+  {
+    slug: "09-graph-to-silicon",
+    title: "From graph to silicon",
+    summary:
+      "An ONNX model lowered onto the array: im2col turns a convolution into a GEMM, the GEMMs become weight tiles, and the cycle-accurate count meets a simulator's estimate.",
+  },
 ] as const;
 
 export type SectionSlug = (typeof SECTIONS)[number]["slug"];

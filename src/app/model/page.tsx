@@ -4,6 +4,7 @@
  * from rtl/rtl_check.json (written by rtl/check_rtl.py). Server Component,
  * static: every number is computed by the model at build time.
  */
+import simfront from "../../../reference/simfront_check.json";
 import rtl from "../../../rtl/rtl_check.json";
 
 import { int } from "@/lib/format";
@@ -16,7 +17,7 @@ import {
   simulateRs,
   traffic,
 } from "@/lib/sa/model";
-import { RTL_FILE, repoFile } from "@/lib/site";
+import { MAC_FILE, RTL_FILE, SIMFRONT_URL, repoFile } from "@/lib/site";
 
 export const metadata = {
   title: "The model",
@@ -247,6 +248,144 @@ export default function ModelPage(): JSX.Element {
           textbook timing and their closed forms.
         </p>
 
+        <h2>The processing element against its RTL</h2>
+        <p>
+          Chapter 6&apos;s PE is the author&apos;s three-stage mixed-precision
+          MAC unit (modules <code>fp16_mul_to_fp32</code>, <code>fp32_add</code>{" "}
+          and <code>mac_unit_mixed_precision</code> of the{" "}
+          <a href={MAC_FILE} className={A}>
+            MAC unit challenge
+          </a>
+          , vendored unchanged at commit {rtl.macSource.commit.slice(0, 7)} as{" "}
+          <a href={repoFile("rtl/mac_unit.sv")} className={A}>
+            rtl/mac_unit.sv
+          </a>
+          ).{" "}
+          <a href={repoFile("rtl/tb_mac_trace.sv")} className={A}>
+            rtl/tb_mac_trace.sv
+          </a>{" "}
+          drives one operation per cycle and prints every pipeline register
+          after every rising edge; the same script compares them with{" "}
+          <code>reference/pe.py</code>, which models the unit register for
+          register (FP16 mode: the stage-1 operands, the exact FP32 product, the
+          FP32 accumulator, valid and clear; INT8 mode: the operand bytes, the
+          INT16 product and the INT32 accumulator). With <code>--shift 1</code>{" "}
+          every case reports mismatches. The same five runs in Vivado xsim
+          2025.2 give byte-identical traces (run locally). The site&apos;s
+          bfloat16 mode has no RTL counterpart and is checked against NumPy.
+        </p>
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="The MAC unit cross-check, case by case (scrolls sideways)"
+        >
+          <table className="w-full text-sm" data-testid="mac-table">
+            <thead>
+              <tr>
+                <th className={TH}>Case</th>
+                <th className={TH}>Mode</th>
+                <th className={TH}>Operations</th>
+                <th className={TH}>Valid</th>
+                <th className={TH}>Dot products</th>
+                <th className={TH}>Edges</th>
+                <th className={TH}>Registers compared</th>
+                <th className={TH}>Mismatches</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rtl.mac.map((c) => (
+                <tr
+                  key={c.name}
+                  className="border-t border-neutral-200 dark:border-neutral-800"
+                >
+                  <td className={TD}>{c.name}</td>
+                  <td className={TD}>{c.mode.toUpperCase()}</td>
+                  <td className={TD}>{c.ops}</td>
+                  <td className={TD}>{c.valid}</td>
+                  <td className={TD}>{c.dots}</td>
+                  <td className={TD}>{c.edges}</td>
+                  <td className={TD}>{int(c.values)}</td>
+                  <td className={TD}>{c.mismatches}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Tiles back to back</h2>
+        <p>
+          Chapter 5 adds a shadow weight register to every PE and runs a
+          GEMM&apos;s weight-stationary tiles back to back (
+          <code>simulateWsStream</code>). The model checks, every cycle, that a
+          PE swaps in the weight of the tile whose activation has just arrived
+          and that every partial sum meets its next product in step; moving one
+          tile&apos;s load or stream a cycle earlier makes it stop with an
+          error. Its cycle counts equal the closed form{" "}
+          <em>
+            S<sub>j+1</sub> = max(S<sub>j</sub> + M, L<sub>j+1</sub> + k
+            <sub>j+1</sub>)
+          </em>
+          , and with the shadow registers off they equal chapter 4&apos;s tiles
+          in sequence.
+        </p>
+
+        <h2>The lowering against Torch_Sim_Frontend</h2>
+        <p>
+          Chapter 9 lowers{" "}
+          <a href={repoFile("reference/data/tiny_cnn.onnx")} className={A}>
+            a small ONNX model
+          </a>{" "}
+          onto the array.{" "}
+          <a href={repoFile("scripts/check_simfront.py")} className={A}>
+            scripts/check_simfront.py
+          </a>{" "}
+          runs the author&apos;s{" "}
+          <a href={SIMFRONT_URL} className={A}>
+            Torch_Sim_Frontend
+          </a>{" "}
+          (commit {simfront.simfront.commit.slice(0, 7)}) on the same file: its
+          ONNX front end and GEMM rule give the same shapes, and its
+          cycle-approximate array formula the same numbers, on a{" "}
+          {simfront.array} × {simfront.array} array.
+        </p>
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="The lowering cross-check, node by node (scrolls sideways)"
+        >
+          <table className="w-full text-sm" data-testid="simfront-table">
+            <thead>
+              <tr>
+                <th className={TH}>Node</th>
+                <th className={TH}>simfront category</th>
+                <th className={TH}>GEMM (batch, M, K, N)</th>
+                <th className={TH}>simfront cycles</th>
+                <th className={TH}>Agree</th>
+              </tr>
+            </thead>
+            <tbody>
+              {simfront.nodes.map((n) => (
+                <tr
+                  key={n.name}
+                  className="border-t border-neutral-200 dark:border-neutral-800"
+                >
+                  <td className={TD}>{n.op.replace("onnx.", "")}</td>
+                  <td className={TD}>{n.category}</td>
+                  <td className={TD}>
+                    {n.simfront.length ? n.simfront[0]!.join(" × ") : "none"}
+                  </td>
+                  <td className={TD}>
+                    {"simfrontCycles" in n ? n.simfrontCycles : "–"}
+                  </td>
+                  <td className={TD}>{n.agree ? "yes" : "no"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         <h2>Row-stationary, as a reference</h2>
         <p>
           For a convolution, Eyeriss&apos;s row-stationary dataflow gives PE(i,
@@ -255,8 +394,8 @@ export default function ModelPage(): JSX.Element {
           its rows into one output row. The model runs it too (
           <code>simulateRs</code>): a {rs.H} × {rs.W} input and a {rs.R} ×{" "}
           {rs.S} filter take {rsTrace.cycles} cycles on {rsTrace.R} ×{" "}
-          {rsTrace.E} PEs, and the output equals a direct convolution. A later
-          chapter uses it.
+          {rsTrace.E} PEs, and the output equals a direct convolution. Chapter 8
+          animates it.
         </p>
       </div>
     </main>

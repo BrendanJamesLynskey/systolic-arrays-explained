@@ -66,7 +66,7 @@ The [Python reference](https://github.com/BrendanJamesLynskey/systolic-arrays-ex
 
 <Callout kind="illustrative">
 
-The matrices are small seeded integers (−4 to 5) so the numbers fit in the PEs; real arrays multiply INT8, BF16 or FP8 values and accumulate in 32 bits (chapter 6, in a later part). The weights load by shifting down the columns, one row per cycle, as in the TPU; the TPU also double-buffers them so the next tile's weights load during the current tile's compute, which this chapter leaves out (chapter 5, in a later part). Results are counted as written in the cycle the bottom PE completes them.
+The matrices are small seeded integers (−4 to 5) so the numbers fit in the PEs; real arrays multiply INT8, BF16 or FP8 values and accumulate in 32 bits ([chapter 6](/learn/06-inside-a-pe)). The weights load by shifting down the columns, one row per cycle, as in the TPU; the TPU also double-buffers them so the next tile's weights load during the current tile's compute, which this chapter leaves out ([chapter 5](/learn/05-tiling)). Results are counted as written in the cycle the bottom PE completes them.
 
 </Callout>
 

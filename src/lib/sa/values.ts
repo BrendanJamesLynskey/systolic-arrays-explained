@@ -7,6 +7,7 @@
  * in words).
  */
 import rtl from "../../../rtl/rtl_check.json";
+import simfront from "../../../reference/simfront_check.json";
 
 import { int, pct, trim } from "@/lib/format";
 
@@ -15,14 +16,21 @@ import {
   DEMO,
   activePerCycle,
   cycles,
+  demoMatrix,
   demoPair,
   reuseSteps,
   shapeSteps,
   simulate,
+  simulateRs,
   traffic,
   utilSteps,
   utilisation,
 } from "./model";
+import { wordsPerMac } from "./captionsB";
+import { DEMO_LOWER, TINY_CNN, lower } from "./lower";
+import { DEMO_PE, demoTrace, f32Value } from "./pe";
+import { streamSchedule, tiledWords } from "./stream";
+import { demoRun, stepsRing, stepsTorus } from "./torus";
 
 export type Fmt = "num" | "int" | "pct" | "pct0" | "raw";
 
@@ -145,6 +153,134 @@ function build(): Record<string, unknown> {
     edges,
     mismatches: mism,
     simulator: rtl.simulator,
+  };
+  let mv = 0;
+  let me = 0;
+  let mm = 0;
+  let mops = 0;
+  for (const c of rtl.mac) {
+    mv += c.values;
+    me += c.edges;
+    mm += c.mismatches;
+    mops += c.ops;
+  }
+  t.mac = {
+    cases: rtl.mac.length,
+    values: mv,
+    edges: me,
+    mismatches: mm,
+    ops: mops,
+    commit: rtl.macSource.commit.slice(0, 7),
+  };
+
+  // chapter 5
+  const S = DEMO.stream;
+  const sOn = streamSchedule(S.M, S.K, S.N, S.array, S.array);
+  const sOff = streamSchedule(S.M, S.K, S.N, S.array, S.array, null, 2, false);
+  const sBw1 = streamSchedule(S.M, S.K, S.N, S.array, S.array, 1, 1);
+  const sBw1d = streamSchedule(S.M, S.K, S.N, S.array, S.array, 1, 2);
+  const sBw2 = streamSchedule(S.M, S.K, S.N, S.array, S.array, 2, 2);
+  const sM1 = streamSchedule(1, S.K, S.N, S.array, S.array);
+  const sM1off = streamSchedule(1, S.K, S.N, S.array, S.array, null, 2, false);
+  const k = S.array;
+  t.stream = {
+    cycles: sOn.cycles,
+    seq: sOff.cycles,
+    tiles: sOn.tiles.length,
+    saved: sOff.cycles - sOn.cycles,
+    util: utilisation(S.M * S.K * S.N, k, k, sOn.cycles),
+    utilSeq: utilisation(S.M * S.K * S.N, k, k, sOff.cycles),
+    bw1single: sBw1.cycles,
+    bw1double: sBw1d.cycles,
+    bw2: sBw2.cycles,
+    m1: sM1.cycles,
+    m1seq: sM1off.cycles,
+    // words a tile needs per cycle of streaming to keep up: k n / max(M, k)
+    need: (k * k) / Math.max(S.M, k),
+    tileWords: k * k,
+  };
+  const bw: Record<string, unknown> = {};
+  for (const m of DEMO.bw.Ms) {
+    const row: Record<string, unknown> = {};
+    for (const r of [8, 256]) {
+      const per: Record<string, number> = {};
+      for (const df of DATAFLOWS)
+        per[df] = wordsPerMac(
+          tiledWords(df, m, DEMO.bw.K, DEMO.bw.N, r, r),
+          m * DEMO.bw.K * DEMO.bw.N,
+        );
+      row[`r${r}`] = per;
+    }
+    bw[`m${m}`] = row;
+  }
+  t.bw = bw;
+
+  // chapter 6
+  const pe: Record<string, unknown> = {};
+  for (const mode of ["fp16", "bf16"] as const) {
+    const tr = demoTrace(mode);
+    let rounded = 0;
+    tr.frames.forEach((f, i) => {
+      if (f.event[0] !== "add") return;
+      const exact = f32Value(f.event[1]) + f32Value(tr.frames[i - 1]!.s2[0]);
+      if (f32Value(f.acc) !== exact) rounded += 1;
+    });
+    pe[mode] = { rounded, cycles: tr.cycles };
+  }
+  t.pe = { ...pe, count: DEMO_PE.count, every: DEMO_PE.every };
+
+  // chapter 7
+  const tor = demoRun();
+  t.torus = {
+    X: tor.X,
+    Y: tor.Y,
+    chips: tor.X * tor.Y,
+    steps: stepsTorus(tor.X, tor.Y),
+    ring: stepsRing(tor.X * tor.Y),
+    perChip: tor.frames[tor.frames.length - 1]!.sent / (tor.X * tor.Y),
+    big: stepsTorus(16, 16),
+    bigRing: stepsRing(256),
+  };
+
+  // chapter 8
+  const rsd = DEMO.rs;
+  const rsT = simulateRs(
+    demoMatrix(rsd.H, rsd.W, rsd.seedX),
+    demoMatrix(rsd.R, rsd.S, rsd.seedF),
+  );
+  const rsEnd = rsT.frames[rsT.frames.length - 1]!.cnt;
+  t.rs = {
+    cycles: rsT.cycles,
+    pes: rsT.R * rsT.E,
+    macs: rsEnd.macs,
+    psumHops: rsEnd.psumHops,
+    outs: rsT.E * rsT.F,
+  };
+
+  // chapter 9
+  const arr = DEMO_LOWER.array;
+  const L = lower(TINY_CNN, arr, arr);
+  const conv = L[0]!;
+  const fc = L[3]!;
+  const g = (l: typeof conv) => ({
+    M: l.gemm![1],
+    K: l.gemm![2],
+    N: l.gemm![3],
+    macs: l.macs!,
+    tiles: l.tiles!,
+    stream: l.stream!,
+    seqWs: l.seqWs!,
+    seqOs: l.seqOs!,
+    approx: l.approx!,
+    util: l.util!,
+  });
+  t.lower = {
+    array: arr,
+    conv: g(conv),
+    fc: g(fc),
+    relu: L[1]!.elements!,
+    simfrontCommit: simfront.simfront.commit.slice(0, 7),
+    simfrontOk: simfront.ok ? "agree" : "disagree",
   };
   return t;
 }
