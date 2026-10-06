@@ -1,0 +1,6 @@
+{
+  "repo": "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators",
+  "path": "02_datapath_design/coding_challenges/challenge_01_systolic_array.sv",
+  "commit": "b37984fc89019d999f6866492433b6cad0977ae8",
+  "copied": "modules pe and systolic_array (the design, up to the TESTBENCH banner), unchanged"
+}

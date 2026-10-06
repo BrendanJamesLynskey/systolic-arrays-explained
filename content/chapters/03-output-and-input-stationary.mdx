@@ -1,0 +1,84 @@
+<CompareWidget>
+  <Eq
+    label="Partial-sum hops: M N times K minus 1 for weight- and input-stationary, N times M times M minus 1 over 2 for output-stationary's drain"
+    tex="\begin{gathered} \htmlClass{hl-p}{\text{partial-sum hops}} \\ \text{WS, IS: } M N (K - 1) \qquad \text{OS: } \tfrac{1}{2} N M (M - 1) \\ \htmlClass{hl-bw}{\text{buffer reads}} = MK + KN \\ \htmlClass{hl-c}{\text{buffer writes}} = MN \end{gathered}"
+  />
+</CompareWidget>
+
+<Layer kind="concept">
+
+Chapter 2 held the weights still. That is one of three choices for a matrix multiply, each named after the operand that stays put in each PE (the names come from Chen, Emer and Sze's taxonomy for the Eyeriss accelerator, which adds row-stationary for convolutions; SCALE-Sim, a systolic-array simulator, uses these three for matrix multiplies):
+
+- **Weight-stationary** (WS): $B$ stays; $A$ streams in from the left; partial sums move down. A $K \times N$ block of PEs.
+- **Output-stationary** (OS): $C$ stays. $a_{mk}$ enters row $m$ from the left and $b_{kn}$ enters column $n$ from the top, both skewed, and they meet in PE$(m, n)$ at cycle $k + m + n$, which adds their product to its own accumulator. Nothing but 8-bit operands moves until the end, when the finished results drain out. An $M \times N$ block.
+- **Input-stationary** (IS): $A$ stays (PE$(k, m)$ holds $a_{mk}$); the columns of $B$ stream in from the left; partial sums move down. It is weight-stationary on the transposed problem $C^\top = B^\top A^\top$. A $K \times M$ block.
+
+The animation runs all three on the same <V of="demo.cmp.M" fmt="int" /> × <V of="demo.cmp.K" fmt="int" /> by <V of="demo.cmp.K" fmt="int" /> × <V of="demo.cmp.N" fmt="int" /> problem on one clock, and counts what each moves. When the problem fits the array, all three read every element of $A$ and $B$ from the buffers exactly once (<V of="cmp.ws.reads" fmt="int" /> reads) and write each result once (<V of="cmp.ws.writes" fmt="int" />), and all three make the same number of PE-to-PE hops (<V of="cmp.ws.hops" fmt="int" />). The difference is **what** hops. WS and IS pass a partial sum down at every hop between rows: <V of="cmp.ws.psumHops" fmt="int" /> partial-sum hops here. OS keeps its sums in place and moves them only when draining: <V of="cmp.os.psumHops" fmt="int" />. That matters because partial sums are wide: 8-bit operands accumulate into 32-bit sums. At 128 × 128 × 128, WS moves <V of="big.ws.bits" fmt="int" /> bits between PEs and OS <V of="big.os.bits" fmt="int" />, though OS writes its accumulator registers more often (<V of="big.os.regWrites" fmt="int" /> register writes against <V of="big.ws.regWrites" fmt="int" />).
+
+The bigger difference shows when the problem does not fit, which is the normal case: the stationary matrix is the one that gets reused across a whole stream, and the dataflow decides which matrix is tiled, which is re-read, and where partial sums of a split $K$ go (chapter 5, in a later part).
+
+</Layer>
+
+<CycleWidget dataflow="os" choose testId="os-widget">
+  <Eq
+    label="PE m n adds a m k times b k n to its accumulator at cycle k plus m plus n"
+    tex="\begin{gathered} \htmlClass{hl-acc}{c_{mn}} \mathrel{+}= \htmlClass{hl-a}{a_{mk}}\,\htmlClass{hl-b}{b_{kn}} \\ \text{in PE}(m, n) \text{ at cycle } \htmlClass{hl-t}{t = k + m + n} \end{gathered}"
+  />
+</CycleWidget>
+
+<Layer kind="concept">
+
+Here is output-stationary with the numbers (switch to input-stationary to watch $A$ held and $B$ streamed). Every PE's sky "c" is its accumulator: it gains one term per cycle as the blue $a$ from the left and the vermillion $b$ from above pass through. After the last product the results drain down the columns, one row per cycle.
+
+**This animation is checked against RTL.** The author's [Interview RTL challenge](https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators/blob/b37984fc89019d999f6866492433b6cad0977ae8/02_datapath_design/coding_challenges/challenge_01_systolic_array.sv) is a parameterised SystemVerilog output-stationary array with internal skew registers. This site's `rtl/check_rtl.py` runs it in <V of="rtl.simulator" fmt="raw" /> on <V of="rtl.cases" fmt="int" /> problems (including full-range signed INT8) and compares every accumulator after every clock edge with this model: <V of="rtl.values" fmt="int" /> values over <V of="rtl.edges" fmt="int" /> edges, <V of="rtl.mismatches" fmt="int" /> mismatches. (The RTL reads its results out in parallel rather than draining them, so after the last product the check requires it to hold $C$.) The [model page](/model) has the details.
+
+</Layer>
+
+<Layer kind="maths">
+
+**Output-stationary timing.** Row $m$ of $A$ is delayed $m$ cycles and column $n$ of $B$ is delayed $n$ cycles, so $a_{mk}$ enters at cycle $k + m$ and reaches PE$(m, n)$ after $n$ more hops, at $k + m + n$; $b_{kn}$ enters at $k + n$ and reaches PE$(m, n)$ after $m$ hops, at the same cycle. The last product, $k = K-1$ in PE$(M-1, N-1)$, happens at cycle $K + M + N - 3$, so with an $M$-cycle drain
+
+$$
+T_{\text{OS}} = (K + M + N - 2) + M .
+$$
+
+**Counting the movement.** Reads: every $a_{mk}$ and $b_{kn}$ enters once, $MK + KN$. Operand hops: $a_{mk}$ crosses $N - 1$ links, $b_{kn}$ crosses $M - 1$: $MK(N-1) + KN(M-1)$. Draining moves $c_{mn}$ down $M - 1 - m$ rows: $\tfrac12 N M(M-1)$. For weight-stationary the activation hops are $MK(N-1)$, each $c_{mn}$'s partial sum makes $K - 1$ hops, $MN(K-1)$, and loading moves $w_{kn}$ down $k$ rows, $\tfrac12 NK(K-1)$. With $M = K = N$ both totals are $\tfrac52 N^2 (N-1)$ hops. The model counts every hop in every frame, and the tests check the counts against these closed forms for every dataflow and shape.
+
+</Layer>
+
+<Layer kind="code">
+
+Output-stationary's PE, cut from [`src/lib/sa/model.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/model.ts): both operands arrive from neighbours (or the edges), and only the accumulator stays.
+
+```ts
+cell[1] = hIn;
+cell[2] = vIn;
+let acc = prev[mm]![nn]![3]!;
+if (hIn !== null && vIn !== null) {
+  /* c8 ignore next */
+  if (hIn[2] !== vIn[1]) throw new Error("operands out of step");
+  cell[4] = [hIn[0], vIn[0]];
+  cnt.macs += 1;
+  cnt.regWrites += 1;
+  acc = [acc[0] + hIn[0] * vIn[0], mm, nn, acc[3] + 1];
+}
+cell[3] = acc;
+```
+
+The check that the two operands belong to the same $k$ never fires: the skew guarantees it, and the tests run every shape.
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The bit counts assume 8-bit operands and 32-bit partial sums (INT8 multiply, INT32 accumulate). The OS drain shifts results down the columns, one row per cycle; the RTL challenge instead reads all accumulators in parallel, and real designs do either. Counts are of values moved, not of energy: what a hop or a register write costs depends on the process and the layout.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [The three dataflows](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-06).
+- AI matrix-multiply unit deck: [Input-stationary and row-stationary (Eyeriss)](https://brendanjameslynskey.github.io/AI_MMUL_Unit/#s7) and the [interactive dataflow comparator](https://brendanjameslynskey.github.io/AI_MMUL_Unit/#s22).
+- Chen, Emer and Sze, [Eyeriss: a spatial architecture for energy-efficient dataflow for convolutional neural networks](https://doi.org/10.1109/ISCA.2016.40), ISCA 2016 (the dataflow taxonomy, and row-stationary); Sze, Chen, Yang and Emer, [Efficient processing of deep neural networks: a tutorial and survey](https://arxiv.org/abs/1703.09039), 2017; Genc et al., [Gemmini](https://arxiv.org/abs/1911.09925), 2019, a generator for systolic arrays that supports both weight- and output-stationary; Samajdar et al., [SCALE-Sim: systolic CNN accelerator simulator](https://arxiv.org/abs/1811.02883), 2018, which models output-, weight- and input-stationary arrays.
+
+</Callout>

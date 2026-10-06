@@ -1,0 +1,79 @@
+<HeroWidget testId="hero-ch1" />
+
+<Layer kind="concept">
+
+A neural network spends almost all of its arithmetic in matrix multiplies: $C = AB$, where every output $c_{mn}$ is a dot product of a row of $A$ and a column of $B$. The multiplications are cheap to build. Feeding them is not: fetching an 8-bit operand from a large on-chip memory costs far more energy than multiplying it, and an off-chip memory cannot deliver operands nearly as fast as a chip full of multipliers can consume them. This is the **memory wall**.
+
+H. T. Kung's answer, set out with Charles Leiserson in 1978 and argued in his 1982 paper _Why systolic architectures?_, is to fetch each number **once** and then pass it from one processing element (PE) to its neighbour, every clock cycle, like blood pumped through a body (hence _systolic_). Each PE does one multiply-accumulate (MAC) per cycle on whatever arrives and passes the operands on. Only the PEs on the edges talk to memory; every wire inside the array is short and connects two neighbours.
+
+The animation above is the model's weight-stationary array, the arrangement in the first TPU. Weights (vermillion) sit in the PEs; activations (blue) enter from the left and step right one PE per cycle; partial sums (sky) step down one PE per cycle, picking up one product in each PE; finished results (purple) leave from the bottom. Its <V of="demo.hero.M" fmt="int" /> × <V of="demo.hero.K" fmt="int" /> by <V of="demo.hero.K" fmt="int" /> × <V of="demo.hero.N" fmt="int" /> multiply takes <V of="hero.cycles" fmt="int" /> cycles, including loading the weights. Chapter 2 runs the same machine with every register's value on screen.
+
+</Layer>
+
+<ReuseWidget>
+  <Eq
+    label="Without reuse, two words per multiply-accumulate; an n by n systolic array takes in 2n words per cycle for n squared MACs, n over 2 MACs per word"
+    tex="\begin{gathered} \text{no reuse: } \min\bigl(n^2,\ \htmlClass{hl-bw}{\beta} / 2\bigr) \text{ MACs per cycle} \\ \text{systolic: } \min\bigl(\htmlClass{hl-n}{n}^2,\ \htmlClass{hl-bw}{\beta}\,\htmlClass{hl-n}{n} / 2\bigr) \text{ MACs per cycle} \\ \htmlClass{hl-u}{n^2 / 2n} = n / 2 \text{ MACs per word} \end{gathered}"
+  />
+</ReuseWidget>
+
+<Layer kind="concept">
+
+The second animation makes the argument with numbers. A memory delivers $\beta$ words per cycle to a grid of $n \times n$ multipliers. If every MAC fetches its own two operands, at most $\beta/2$ MACs can run per cycle however many multipliers you build: with $\beta =$ <V of="demo.beta" fmt="int" /> and a <V of="reuse.n" fmt="int" /> × <V of="reuse.n" fmt="int" /> grid, <V of="reuse.naive" fmt="int" /> of its <V of="reuse.peak" fmt="int" /> multipliers are busy (<V of="reuse.naiveShare" fmt="pct" />). In a systolic array a word entering at the left edge is used by every PE along its row, and a word entering at the top by every PE down its column, so the whole grid needs only $2n =$ <V of="reuse.words" fmt="int" /> words per cycle and all <V of="reuse.sys" fmt="int" /> MACs run.
+
+The ratio of MACs to words fetched, the **arithmetic intensity** at the array's edge, grows as $n/2$: <V of="reuse.perWord" fmt="int" /> MACs per word at $n = 16$. That is why matrix units are big. The first TPU's matrix unit is a 256 × 256 grid of 65,536 8-bit MACs (Jouppi et al., 2017), so each operand that enters it is used 256 times.
+
+</Layer>
+
+<Layer kind="maths">
+
+For an output-stationary array (chapter 3), PE$(i, j)$ computes $c_{ij} = \sum_k a_{ik} b_{kj}$. Element $a_{ik}$ enters row $i$ and visits the $n$ PEs of that row; element $b_{kj}$ enters column $j$ and visits its $n$ PEs. Per cycle the array therefore reads $n$ words of $A$ and $n$ of $B$ and performs $n^2$ MACs: an intensity of $n^2 / 2n = n/2$ MACs per word read. Without reuse each MAC reads 2 words, an intensity of $\tfrac12$.
+
+Given a memory bandwidth of $\beta$ words per cycle, the sustainable rate is the smaller of the compute peak and the bandwidth times the intensity:
+
+$$
+\text{rate} = \min\Bigl(n^2,\ \beta \cdot \frac{n}{2}\Bigr),
+$$
+
+which is the roofline model with the array's edge as the memory interface. A 4 × 4 array reads <V of="reuse.n4words" fmt="int" /> words per cycle where 16 independent MACs would read <V of="reuse.n4naiveWords" fmt="int" />.
+
+</Layer>
+
+<Layer kind="code">
+
+The animation's states, cut from [`src/lib/sa/model.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/model.ts) (throughputs are stored doubled so they stay integers):
+
+```ts
+export function reuseSteps(beta: number, nMax: number): ReuseStep[] {
+  const out: ReuseStep[] = [];
+  for (let n = 1; n <= nMax; n++) {
+    const peak = n * n;
+    out.push({
+      n,
+      peak,
+      naive2: Math.min(2 * peak, beta),
+      systolic2: Math.min(2 * peak, beta * n),
+      wordsPerCycle: 2 * n,
+      macsPerWord2: n,
+    });
+  }
+  return out;
+}
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The memory bandwidths ($\beta$ = 8, 32 and 128 words per cycle) are round numbers chosen to show the effect, not any chip's. The memory-wall model counts only operand reads and ignores the results written back (one per $c_{ij}$, at the end), as the maths says. The matrices in the hero are small seeded integers.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [What's a systolic array?](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-01), [Kung and Leiserson, 1978](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-02) and [Why systolic architectures? (Kung 1982)](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-03).
+- AI matrix-multiply unit deck: [The systolic principle](https://brendanjameslynskey.github.io/AI_MMUL_Unit/#s4).
+- H. T. Kung, [Why systolic architectures?](https://doi.org/10.1109/MC.1982.1653825), IEEE Computer 15(1), 1982; H. T. Kung and C. E. Leiserson, _Systolic arrays (for VLSI)_, Sparse Matrix Proceedings 1978 (SIAM, 1979), also CMU technical report CMU-CS-79-103.
+- Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), ISCA 2017, section 2: "the matrix unit uses systolic execution to save energy by reducing reads and writes of the Unified Buffer".
+
+</Callout>

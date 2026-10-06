@@ -1,0 +1,78 @@
+<CycleWidget dataflow="ws">
+  <Eq
+    label="The partial sum for c m n gains a m k times w k n in PE k n, at compute cycle m plus k plus n"
+    tex="\begin{gathered} \htmlClass{hl-p}{p^{(k+1)}_{mn}} = \htmlClass{hl-p}{p^{(k)}_{mn}} + \htmlClass{hl-a}{a_{mk}}\,\htmlClass{hl-w}{w_{kn}}, \qquad \htmlClass{hl-c}{c_{mn}} = \htmlClass{hl-p}{p^{(K)}_{mn}} \\ \text{in PE}(k, n) \text{ at compute cycle } \htmlClass{hl-t}{t = m + k + n} \end{gathered}"
+  />
+</CycleWidget>
+
+<Layer kind="concept">
+
+This is the whole machine, one clock cycle per step, with the value in every register. The array is $K \times N$ PEs: one PE for every weight $w_{kn} = b_{kn}$ of $B$.
+
+1. **Load** (the first $K$ cycles). The weights enter at the top, one row of $B$ per cycle, and shift down until PE$(k, n)$ holds $w_{kn}$ (the vermillion "w" in each PE). From then on they stay put: the dataflow is named after what is **stationary**.
+2. **Stream.** Row $m$ of $A$ enters from the left, but not all at once: $a_{mk}$ enters row $k$ of the array at compute cycle $m + k$. This **skew**, the staircase of blue values waiting at the left edge, is what makes everything meet at the right time. Each activation steps one PE to the right per cycle, so it is used by all $N$ PEs of its row.
+3. **Accumulate downwards.** Each PE multiplies the activation passing through by its weight and adds the product to the partial sum that arrived from the PE above (sky "p"), then passes the new sum down. PE$(k, n)$ handles row $m$ at cycle $m + k + n$; the PE above did so one cycle earlier, so its partial sum is exactly the one needed.
+4. **Drain.** After $K$ PEs the sum is complete, and $c_{mn}$ leaves the bottom of column $n$ (purple), at compute cycle $m + (K - 1) + n$.
+
+With the default problem ($A$ is <V of="demo.ws.M" fmt="int" /> × <V of="demo.ws.K" fmt="int" />, $B$ is <V of="demo.ws.K" fmt="int" /> × <V of="demo.ws.N" fmt="int" />, on <V of="ws.pes" fmt="int" /> PEs), the run takes <V of="ws.cycles" fmt="int" /> cycles: <V of="ws.load" fmt="int" /> to load and <V of="ws.compute" fmt="int" /> to stream, compute and drain. The first result, $c_{00} =$ <V of="ws.c00" fmt="int" />, leaves in cycle <V of="ws.firstOut" fmt="int" /> and the last in cycle <V of="ws.lastOut" fmt="int" />. The array does <V of="ws.macs" fmt="int" /> useful MACs, <V of="ws.util" fmt="pct" /> of what its PEs could have done in that time; chapter 4 is about where the rest goes.
+
+Change $M$, $K$ or $N$: the model re-runs and the animation restarts. More rows of $A$ use the same loaded weights again, which is why the TPU holds weights: in inference a weight matrix is reused by every token in a batch.
+
+</Layer>
+
+<Layer kind="maths">
+
+Write $\tau$ for the compute cycle (after the $K$ load cycles). The left edge of row $k$ receives
+
+$$
+\text{in}_k(\tau) = \begin{cases} a_{\tau - k,\,k} & 0 \le \tau - k < M \\ \text{bubble} & \text{otherwise.} \end{cases}
+$$
+
+Every register is a flip-flop, so a value latched by PE$(k, n)$ at the end of cycle $\tau$ reaches PE$(k, n+1)$ (activations) or PE$(k+1, n)$ (partial sums) in cycle $\tau + 1$. By induction on $n$, $a_{mk}$ is in PE$(k, n)$ in cycle $m + k + n$; by induction on $k$, the partial sum for $(m, n)$ holding $k$ terms arrives at PE$(k, n)$ in the same cycle $m + k + n$. So PE$(k, n)$ computes
+
+$$
+p^{(k+1)}_{mn} = p^{(k)}_{mn} + a_{mk}\,w_{kn}, \qquad p^{(0)}_{mn} = 0,
+$$
+
+and $p^{(K)}_{mn} = \sum_k a_{mk} b_{kn} = c_{mn}$ leaves the bottom at $\tau = m + K - 1 + n$. The last result, $c_{M-1,N-1}$, leaves at $\tau = M + K + N - 3$, so a run takes
+
+$$
+T_{\text{WS}} = \underbrace{K}_{\text{load}} + (M + K + N - 2)\ \text{cycles}.
+$$
+
+The tests check every one of these claims against the frames: each product $a_{mk} w_{kn}$ happens in PE$(k, n)$ at cycle $m + k + n$, each result leaves when complete, and $C$ equals numpy's matmul.
+
+</Layer>
+
+<Layer kind="code">
+
+The heart of the model, cut from [`src/lib/sa/model.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/model.ts): one PE in one compute cycle. `prev` is the previous cycle's registers, so everything moves one PE per cycle by construction (`ws` covers weight- and input-stationary, which are the same machine with $A$ and $B$ swapped):
+
+```ts
+const wVal = cell[0]![0];
+cell[4] = [hIn[0], wVal];
+cnt.macs += 1;
+cell[2] = [pVal + hIn[0] * wVal, mi, ni, terms + 1];
+cnt.regWrites += 1;
+if (kk === k - 1) {
+  out.push([mi, ni, cell[2][0]]);
+  cnt.writes += 1;
+}
+```
+
+The [Python reference](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/reference/systolic.py) has the same loop; the TypeScript port reproduces every register of every PE in every cycle exactly, for every problem size the sliders allow.
+
+</Layer>
+
+<Callout kind="illustrative">
+
+The matrices are small seeded integers (−4 to 5) so the numbers fit in the PEs; real arrays multiply INT8, BF16 or FP8 values and accumulate in 32 bits (chapter 6, in a later part). The weights load by shifting down the columns, one row per cycle, as in the TPU; the TPU also double-buffers them so the next tile's weights load during the current tile's compute, which this chapter leaves out (chapter 5, in a later part). Results are counted as written in the cycle the bottom PE completes them.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [The TPU's choice: weight-stationary](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-07), [How a 256 × 256 array maps a matmul](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-08) and [The 256 × 256 matrix multiply unit](https://brendanjameslynskey.github.io/Google_TPU_04_Inside_TPU_v1/#slide-02).
+- Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), section 2 and figure 4: data flows in from the left, the weights are loaded from the top and preloaded, and each 256-element multiply-accumulate moves through the matrix as a diagonal wavefront.
+
+</Callout>

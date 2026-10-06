@@ -1,0 +1,65 @@
+{
+  "cases": [
+    {
+      "C": [
+        [19, 9, 23, 5],
+        [7, 7, 5, -18],
+        [-7, -10, 20, -2],
+        [8, 2, 15, 6]
+      ],
+      "K": 4,
+      "N": 4,
+      "edges": 14,
+      "lastMacEdge": 10,
+      "mismatches": 0,
+      "modelComputeCycles": 10,
+      "name": "n4_k4_small",
+      "range": [-4, 5],
+      "validOutEdges": [10],
+      "values": 224
+    },
+    {
+      "C": [
+        [2361, 7083, 10760, 247],
+        [-3593, -1881, -1101, -14503],
+        [-11250, -10627, -13891, -26041],
+        [-6295, -14042, -12809, -9902]
+      ],
+      "K": 7,
+      "N": 4,
+      "edges": 17,
+      "lastMacEdge": 13,
+      "mismatches": 0,
+      "modelComputeCycles": 13,
+      "name": "n4_k7_int8",
+      "range": [-128, 127],
+      "validOutEdges": [13],
+      "values": 272
+    },
+    {
+      "C": [
+        [-11, 6, -1],
+        [19, -7, -14],
+        [16, -19, -14]
+      ],
+      "K": 5,
+      "N": 3,
+      "edges": 13,
+      "lastMacEdge": 9,
+      "mismatches": 0,
+      "modelComputeCycles": 9,
+      "name": "n3_k5_small",
+      "range": [-4, 5],
+      "validOutEdges": [9],
+      "values": 117
+    }
+  ],
+  "ok": true,
+  "simulator": "Verilator 5.020",
+  "source": {
+    "commit": "b37984fc89019d999f6866492433b6cad0977ae8",
+    "copied": "modules pe and systolic_array (the design, up to the TESTBENCH banner), unchanged",
+    "path": "02_datapath_design/coding_challenges/challenge_01_systolic_array.sv",
+    "repo": "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators"
+  }
+}

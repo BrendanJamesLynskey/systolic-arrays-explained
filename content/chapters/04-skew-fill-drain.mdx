@@ -1,0 +1,78 @@
+<WavefrontWidget>
+  <Eq
+    label="A weight-stationary run takes K load cycles plus M plus K plus N minus 2; the array fills for K plus N minus 2 cycles"
+    tex="\begin{gathered} T = \htmlClass{hl-w}{K} + \bigl(M + \htmlClass{hl-fill}{K + N - 2}\bigr) \\ \text{PE}(k, n) \text{ busy at } \htmlClass{hl-t}{\tau} \iff 0 \le \htmlClass{hl-t}{\tau} - k - n < M \end{gathered}"
+  />
+</WavefrontWidget>
+
+<Layer kind="concept">
+
+The skew that chapter 2 needed has a price. Row $m$ of $A$ reaches PE$(k, n)$ at cycle $m + k + n$, so in any one cycle the busy PEs are those on a band of anti-diagonals: the **wavefront**. It enters at the top-left corner, takes $K + N - 2$ cycles to reach the far corner (the **fill**), and after the last row of $A$ has entered it takes as long again to leave (the **drain**). Only in between, and only if the stream is long enough, is every PE busy.
+
+With the default <V of="demo.wave.M" fmt="int" /> rows of $A$ through a <V of="demo.wave.K" fmt="int" /> × <V of="demo.wave.N" fmt="int" /> array, the fill takes <V of="wave.fill" fmt="int" /> cycles, all <V of="wave.peak" fmt="int" /> PEs are busy only briefly, and the whole run (with the weight load) takes <V of="wave.cycles" fmt="int" /> cycles at <V of="wave.util" fmt="pct" /> utilisation. Shorten the stream below $K + N - 1$ rows and the array never fills at all.
+
+The skew itself costs hardware too: something has to delay row $k$ by $k$ cycles. The RTL challenge on the [model page](/model) uses a chain of $k$ registers per row, $\tfrac12 K(K-1)$ for the left edge (<V of="ws.skewRegs" fmt="int" /> registers for <V of="demo.ws.K" fmt="int" /> rows); some designs skew in the memory system instead.
+
+</Layer>
+
+<UtilWidget>
+  <Eq
+    label="Utilisation is the useful MACs, M K N, over the array's R C PEs times the cycles"
+    tex="\begin{gathered} \htmlClass{hl-u}{U} = \frac{MKN}{RC \cdot T} \\ \text{WS, block full: } \htmlClass{hl-u}{U} = \frac{M}{M + 2R + C - 2} \to 1 \end{gathered}"
+  />
+</UtilWidget>
+
+<Layer kind="concept">
+
+**Utilisation** is the fraction of the array's MAC slots that did useful work. The fill, drain and weight load are a fixed overhead per pass, so the way to amortise them is a long stream. On an <V of="util.array" fmt="int" /> × <V of="util.array" fmt="int" /> weight-stationary array with its weights all used, one row of $A$ gives <V of="util.m1" fmt="pct" />, <V of="util.array" fmt="int" /> rows give <V of="util.m8" fmt="pct" />, and 64 rows give <V of="util.m64" fmt="pct" />; reaching 90% takes <V of="util.m90" fmt="int" /> rows. For a 256 × 256 array, as in the first TPU, the overhead is <V of="util.overheadBig" fmt="int" /> cycles and 90% takes <V of="util.m90big" fmt="int" /> rows. This is why such arrays want big batches (more rows of activations per loaded weight tile), and why the TPU double-buffers its weights: a weight load hidden behind the previous tile's stream costs nothing (chapter 5, in a later part).
+
+Switch to **matrix width** to see the other loss. Here $M =$ <V of="shape.M" fmt="int" /> and $K =$ <V of="shape.K" fmt="int" /> fit, and $N$ grows past the array's 8 columns. At $N = 8$ the tile fills the array (<V of="shape.n8" fmt="pct" />); at $N = 9$ a second tile is needed for one column, and utilisation drops to <V of="shape.n9" fmt="pct" />. It climbs back as that tile fills, and drops again at 17 (<V of="shape.n17" fmt="pct" />): a matrix dimension just past a multiple of the array size wastes most of a tile. It is one reason model dimensions are usually multiples of a power of two.
+
+</Layer>
+
+<Layer kind="maths">
+
+For weight-stationary on a $K \times N$ block, PE$(k, n)$ is busy at compute cycle $\tau$ when it holds a row of $A$: $0 \le \tau - k - n < M$. The busy count at $\tau$ is the number of $(k, n)$ in the block with $\tau - M < k + n \le \tau$; it rises over the fill, is $KN$ while $K + N - 2 \le \tau \le M - 1$ (if $M \ge K + N - 1$), and falls over the drain. Summed over all cycles it is $MKN$, every MAC once.
+
+Including the $K$ load cycles, a pass takes $T = K + M + K + N - 2$, so with the block filling an $R \times C$ array ($K = R$, $N = C$)
+
+$$
+U = \frac{MRC}{RC\,(M + 2R + C - 2)} = \frac{M}{M + 2R + C - 2},
+$$
+
+and $U \ge u$ needs $M \ge u\,(2R + C - 2)/(1 - u)$: for $u = 0.9$ and $R = C = 8$, $M \ge$ <V of="util.m90" fmt="int" />. When a dimension does not fit, the problem is cut into tiles of at most $R$ rows of $K$ and $C$ columns of $N$, run one after another; tile $j$ has $k_j \le R$ and $n_j \le C$ and costs $T_j = k_j + M + k_j + n_j - 2$, and
+
+$$
+U = \frac{MKN}{RC \sum_j T_j}.
+$$
+
+The model runs every tile cycle by cycle and checks the sum of their cycles against this closed form.
+
+</Layer>
+
+<Layer kind="code">
+
+The closed form for one pass, cut from [`src/lib/sa/model.ts`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/src/lib/sa/model.ts) (tests check it equals the number of frames the cycle-accurate model produces, for every dataflow and shape):
+
+```ts
+export function cycles(df: Dataflow, m: number, k: number, n: number): number {
+  if (df === "ws") return k + (m + k + n - 2);
+  if (df === "os") return k + m + n - 2 + m;
+  return k + (n + k + m - 2);
+}
+```
+
+</Layer>
+
+<Callout kind="illustrative">
+
+Each pass is counted on its own: the weights load before every tile, and one tile's drain does not overlap the next tile's fill. Real arrays overlap both (double-buffered weights, back-to-back tiles), which raises utilisation; chapter 5, in a later part, adds that. The 256 × 256 figure uses the same accounting, so it is a lower bound for a real TPU, not a measurement.
+
+</Callout>
+
+<Callout kind="deeper">
+
+- Google TPU series: [Interactive: wavefront visualiser](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-09) and [Throughput and utilisation](https://brendanjameslynskey.github.io/Google_TPU_03_Systolic_Arrays/#slide-10) (which approximates the fill and drain of a 256 × 256 array as about 512 cycles).
+- Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), section 2 (the diagonal wavefront; a second weight tile to hide the 256 cycles a tile takes to shift in) and section 4 (for one of its CNNs, only about half of the 65,536 MACs hold useful weights, because some layers have shallow feature depths).
+
+</Callout>
