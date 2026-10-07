@@ -60,7 +60,7 @@ for (const scheme of ["light", "dark"] as const) {
   }
 }
 
-test("the six-way site switch: a row on desktop, a dropdown on phones", async ({
+test("the seven-way site switch: a row on desktop, a dropdown on phones", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -74,6 +74,7 @@ test("the six-way site switch: a row on desktop, a dropdown on phones", async ({
     "Kernels",
     "Numerics",
     "Silicon",
+    "Trade-offs",
   ])
     await expect(row.getByRole("link", { name: l })).toBeVisible();
   await expect(row.getByRole("link", { name: "Silicon" })).toHaveAttribute(

@@ -9,6 +9,7 @@ import {
   INFERENCE_URL,
   KERNELS_URL,
   NUMERICS_URL,
+  TRADEOFFS_URL,
 } from "@/lib/site";
 
 const A =
@@ -91,12 +92,16 @@ export default function HomePage(): JSX.Element {
         <a href={KERNELS_URL} className={A}>
           GPU Kernels Explained
         </a>{" "}
-        (how a GPU runs the maths) and{" "}
+        (how a GPU runs the maths),{" "}
         <a href={NUMERICS_URL} className={A}>
           Numerics Explained
         </a>{" "}
-        (the number formats). This site is the silicon underneath. How it was
-        built, and how to check it:{" "}
+        (the number formats) and{" "}
+        <a href={TRADEOFFS_URL} className={A}>
+          Inference Trade-offs Explained
+        </a>{" "}
+        (which serving lever helps which metric). This site is the silicon
+        underneath. How it was built, and how to check it:{" "}
         <Link href="/about" className={A}>
           about
         </Link>
