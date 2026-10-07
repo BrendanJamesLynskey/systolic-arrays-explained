@@ -19,9 +19,11 @@ shows one forward pass, [LLM Inference Explained](https://llm-inference-explaine
 shows how a model is served, [LLM Architectures Explained](https://llm-architectures-explained.vercel.app/)
 shows how the models differ, [GPU Kernels Explained](https://gpu-kernels-explained.vercel.app/)
 shows how a GPU runs the maths, [Numerics Explained](https://numerics-explained.vercel.app/)
-is about the number formats, and this site is the silicon underneath. They
-share one design system and link to each other from the header ("Decoder ·
-Inference · Architectures · Kernels · Numerics · Silicon").
+is about the number formats, this site is the silicon underneath, and
+[Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
+measures which serving lever helps which metric. They share one design
+system and link to each other from the header ("Decoder · Inference ·
+Architectures · Kernels · Numerics · Silicon · Trade-offs").
 
 **Live:** [systolic-arrays-explained.vercel.app](https://systolic-arrays-explained.vercel.app/)
 
@@ -247,7 +249,7 @@ at commit `e4b7ae7`, which copied it from the other companion sites:
 | Here                                                                                                                                               | From                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`                                                                                  | identical apart from titles; `globals.css` has this site's equation-highlight keys     |
-| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and six-way switch, with Silicon now live                              |
+| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and seven-way switch, with Silicon live                                |
 | `src/components/anim/`, `src/lib/anim/clock.ts`, `src/components/viz/useSvgFont.ts`, `src/components/mdx/Eq.tsx`, `V.tsx`                          | unchanged (`V` reads this site's values)                                               |
 | `src/lib/viz/palette.ts`                                                                                                                           | the family palette, plus this site's data and dataflow colours                         |
 | `src/app/learn/`, `src/lib/mdx/`, `Layer.tsx`, `LayerToggle.tsx`, `MdxTable.tsx`, `Controls.tsx`, `Callout.tsx`, `lazy.tsx`                        | copied                                                                                 |

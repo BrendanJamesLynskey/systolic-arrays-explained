@@ -13,6 +13,7 @@ import {
   INFERENCE_URL,
   KERNELS_URL,
   NUMERICS_URL,
+  TRADEOFFS_URL,
   TPU_HUB,
   repoFile,
 } from "@/lib/site";
@@ -55,10 +56,14 @@ export default function AboutPage(): JSX.Element {
           ,{" "}
           <a href={KERNELS_URL} className={A}>
             GPU Kernels Explained
-          </a>{" "}
-          and{" "}
+          </a>
+          ,{" "}
           <a href={NUMERICS_URL} className={A}>
             Numerics Explained
+          </a>{" "}
+          and{" "}
+          <a href={TRADEOFFS_URL} className={A}>
+            Inference Trade-offs Explained
           </a>
           . The chapters link the matching slides of the{" "}
           <a href={TPU_HUB} className={A}>
