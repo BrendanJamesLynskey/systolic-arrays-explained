@@ -22,8 +22,12 @@ shows how a GPU runs the maths, [Numerics Explained](https://numerics-explained.
 is about the number formats, this site is the silicon underneath, and
 [Inference Trade-offs Explained](https://inference-tradeoffs-explained.vercel.app/)
 measures which serving lever helps which metric. They share one design
-system and link to each other from the header ("Decoder · Inference ·
-Architectures · Kernels · Numerics · Silicon · Trade-offs").
+system and link to each other from the header, in two groups:
+"LLM systems" (Decoder · Inference · Architectures · Kernels · Numerics ·
+Silicon · Trade-offs) and "Agents", which starts with
+[Agent Harnesses Explained](https://agent-harnesses-explained.vercel.app/)
+(the loop, tools, context and permissions that turn a model into an agent;
+five more agent sites are marked "soon").
 
 **Live:** [systolic-arrays-explained.vercel.app](https://systolic-arrays-explained.vercel.app/)
 
@@ -249,7 +253,7 @@ at commit `e4b7ae7`, which copied it from the other companion sites:
 | Here                                                                                                                                               | From                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`                                                                                  | identical apart from titles; `globals.css` has this site's equation-highlight keys     |
-| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and seven-way switch, with Silicon live                                |
+| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and two-group switch, with Silicon live                                |
 | `src/components/anim/`, `src/lib/anim/clock.ts`, `src/components/viz/useSvgFont.ts`, `src/components/mdx/Eq.tsx`, `V.tsx`                          | unchanged (`V` reads this site's values)                                               |
 | `src/lib/viz/palette.ts`                                                                                                                           | the family palette, plus this site's data and dataflow colours                         |
 | `src/app/learn/`, `src/lib/mdx/`, `Layer.tsx`, `LayerToggle.tsx`, `MdxTable.tsx`, `Controls.tsx`, `Callout.tsx`, `lazy.tsx`                        | copied                                                                                 |
