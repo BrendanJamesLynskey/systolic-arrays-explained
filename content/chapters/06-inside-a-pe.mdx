@@ -84,5 +84,6 @@ The operands are random normal numbers with small exponents (bfloat16 exponents 
 - Google TPU series: [bfloat16, Google Brain's numeric](https://brendanjameslynskey.github.io/Google_TPU_05_v2_v3_Training_Era/#slide-03) and [Accumulator widths and numerical stability](https://brendanjameslynskey.github.io/Google_TPU_09_Memory_and_Numerics/#slide-09).
 - Kalamkar et al., [A study of BFLOAT16 for deep learning training](https://arxiv.org/abs/1905.12322), 2019; Google Cloud, [The bfloat16 numerical format](https://docs.cloud.google.com/tpu/docs/bfloat16).
 - The author's [MAC unit challenge](https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators/blob/b37984fc89019d999f6866492433b6cad0977ae8/02_datapath_design/coding_challenges/challenge_02_mac_unit_fp16_int8.sv), with its own testbench (specials, saturation and 50 random FP16 tiles).
+- New to training? [Training, chapter 9: mixed precision](https://transformer-training-explained.vercel.app/training/09-mixed-precision) (Part 2 of the Transformer Decoder Explainer): why training multiplies in bfloat16 but accumulates and keeps its master weights in FP32.
 
 </Callout>
