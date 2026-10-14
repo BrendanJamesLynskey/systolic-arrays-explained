@@ -18,6 +18,12 @@ export const TRADEOFFS_URL = "https://inference-tradeoffs-explained.vercel.app";
 export const GITHUB_URL =
   "https://github.com/BrendanJamesLynskey/systolic-arrays-explained";
 
+/** The author, credited in one quiet line at the foot of the About page. */
+export const AUTHOR = {
+  name: "Brendan Lynskey",
+  url: "https://github.com/BrendanJamesLynskey",
+} as const;
+
 /** The author's RTL repository the cross-check vendors its design from. */
 export const RTL_REPO =
   "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators";

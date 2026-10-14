@@ -22,6 +22,13 @@ import { SECTIONS } from "@/lib/mdx/sections";
 import { cycles } from "@/lib/sa/model";
 import { lookup } from "@/lib/sa/values";
 
+/** The author credit: the last line of the About page (brief 35). */
+const CREDIT = [
+  'data-author-credit="true"',
+  "Written and built by",
+  'href="https://github.com/BrendanJamesLynskey">Brendan Lynskey</a>',
+];
+
 type Result = { path: string; ok: boolean; detail: string };
 
 const headers: Record<string, string> = process.env.VERCEL_BYPASS
@@ -84,7 +91,7 @@ async function main(): Promise<void> {
       int(cycles("ws", 128, 128, 128)),
       "n4_k7_int8",
     ]),
-    checkPage(base, "/about", ["How it is checked", "Against RTL"]),
+    checkPage(base, "/about", [...CREDIT, "How it is checked", "Against RTL"]),
     checkPage(
       base,
       "/learn",
