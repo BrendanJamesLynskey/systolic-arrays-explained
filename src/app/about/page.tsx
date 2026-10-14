@@ -8,6 +8,7 @@ import Link from "next/link";
 import { V } from "@/components/mdx/V";
 import {
   ARCHITECTURES_URL,
+  AUTHOR,
   DECODER_URL,
   GITHUB_URL,
   INFERENCE_URL,
@@ -222,6 +223,15 @@ export default function AboutPage(): JSX.Element {
           the README records where each piece came from.
         </p>
       </div>
+      <p
+        className="mt-12 text-sm text-neutral-600 dark:text-neutral-400"
+        data-author-credit
+      >
+        Written and built by{" "}
+        <a className={A} href={AUTHOR.url}>
+          {AUTHOR.name}
+        </a>
+      </p>
     </main>
   );
 }
