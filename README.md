@@ -24,7 +24,7 @@ is about the number formats, this site is the silicon underneath, and
 measures which serving lever helps which metric. They share one design
 system and link to each other from the header, in four tracks, and the
 header always shows where you are ("Track › Site"): "Foundations" (Decoder ·
-Training: one small model, end to end), "Hardware" (Kernels · Silicon · Racks:
+Training: one small model, end to end), "Hardware" (Kernels · Systolic · Accelerators · Racks:
 the machines underneath, chip to rack), "Inference" (Serving ·
 Architectures · Numerics · Trade-offs; Serving is LLM Inference Explained) and
 "Agents", which starts with
@@ -265,7 +265,7 @@ at commit `e4b7ae7`, which copied it from the other companion sites:
 | Here                                                                                                                                               | From                                                                                   |
 | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
 | `tailwind.config.ts`, `src/app/globals.css`, `src/app/layout.tsx`                                                                                  | identical apart from titles; `globals.css` has this site's equation-highlight keys     |
-| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and four-track switch, with Silicon live                               |
+| `src/components/ui/SiteHeader.tsx`, `SiteSwitch.tsx`                                                                                               | the same header and four-track switch, with Systolic live                              |
 | `src/components/anim/`, `src/lib/anim/clock.ts`, `src/components/viz/useSvgFont.ts`, `src/components/mdx/Eq.tsx`, `V.tsx`                          | unchanged (`V` reads this site's values)                                               |
 | `src/lib/viz/palette.ts`                                                                                                                           | the family palette, plus this site's data and dataflow colours                         |
 | `src/app/learn/`, `src/lib/mdx/`, `Layer.tsx`, `LayerToggle.tsx`, `MdxTable.tsx`, `Controls.tsx`, `Callout.tsx`, `lazy.tsx`                        | copied                                                                                 |
