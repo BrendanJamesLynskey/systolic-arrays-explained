@@ -15,7 +15,7 @@
  * the model page must print the model's own numbers (computed here with
  * the same code), every chapter must render its MDX (a layer, server-
  * rendered KaTeX and the animation's placeholder), and the header must
- * carry the four-track site switch with Silicon current.
+ * carry the four-track site switch with Systolic current.
  */
 import { int } from "@/lib/format";
 import { SECTIONS } from "@/lib/mdx/sections";
@@ -46,6 +46,7 @@ const SWITCH = [
   'data-site-group="foundations"',
   'data-site-group="hardware"',
   'href="https://ai-racks-explained.vercel.app"',
+  'href="https://ai-accelerators-explained.vercel.app"',
   'data-site-place="silicon"',
   'data-site-brand="true" class="focus-ring whitespace-nowrap rounded text-sm font-medium tracking-tight" href="/">Systolic Arrays Explained</a>',
   'data-site-key="inference"',

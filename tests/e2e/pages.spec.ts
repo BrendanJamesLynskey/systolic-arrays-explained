@@ -72,7 +72,9 @@ test("the site switch: four tracks, and the brand names the site and the button 
     await page.goto("/");
     // closed: the button reads "<Track> › <Site>", and the brand names the site
     await expect(menu).toBeVisible();
-    await expect(menu.locator("summary")).toHaveText(/^Hardware\W+Silicon\W*$/);
+    await expect(menu.locator("summary")).toHaveText(
+      /^Hardware\W+Systolic\W*$/,
+    );
     // the brand names the site; the place ("Track › Site") is said once, on the button
     await expect(brand).toHaveText("Systolic Arrays Explained");
     await expect(brand.locator("[data-site-place]")).toHaveCount(0);
@@ -117,9 +119,15 @@ test("the site switch: four tracks, and the brand names the site and the button 
       ],
       [
         "silicon",
-        "Silicon",
+        "Systolic",
         "Inside a matrix engine",
         "https://systolic-arrays-explained.vercel.app",
+      ],
+      [
+        "accelerators",
+        "Accelerators",
+        "The families of AI chips",
+        "https://ai-accelerators-explained.vercel.app",
       ],
       [
         "racks",
@@ -206,7 +214,7 @@ test("the site switch: four tracks, and the brand names the site and the button 
     // each track holds its own sites
     for (const [group, n] of [
       ["foundations", 2],
-      ["hardware", 3],
+      ["hardware", 4],
       ["inference", 4],
       ["agents", 6],
     ] as const)
