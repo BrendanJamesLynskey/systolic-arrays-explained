@@ -3,14 +3,6 @@ import Link from "next/link";
 import { HeroWidget } from "@/components/interactive/lazy";
 import { V } from "@/components/mdx/V";
 import { SECTIONS } from "@/lib/mdx/sections";
-import {
-  ARCHITECTURES_URL,
-  DECODER_URL,
-  INFERENCE_URL,
-  KERNELS_URL,
-  NUMERICS_URL,
-  TRADEOFFS_URL,
-} from "@/lib/site";
 
 const A =
   "focus-ring rounded underline decoration-accent/40 underline-offset-4 hover:decoration-accent";
@@ -76,32 +68,81 @@ export default function HomePage(): JSX.Element {
         .
       </p>
       <p className="mt-12 text-sm text-neutral-600 dark:text-neutral-400">
-        Part of a family of companion sites: the{" "}
-        <a href={DECODER_URL} className={A}>
-          Transformer Decoder Explainer
-        </a>{" "}
-        (one forward pass),{" "}
-        <a href={INFERENCE_URL} className={A}>
-          LLM Inference Explained
-        </a>{" "}
-        (serving it),{" "}
-        <a href={ARCHITECTURES_URL} className={A}>
-          LLM Architectures Explained
-        </a>{" "}
-        (how the models differ),{" "}
-        <a href={KERNELS_URL} className={A}>
-          GPU Kernels Explained
-        </a>{" "}
-        (how a GPU runs the maths),{" "}
-        <a href={NUMERICS_URL} className={A}>
-          Numerics Explained
-        </a>{" "}
-        (the number formats) and{" "}
-        <a href={TRADEOFFS_URL} className={A}>
-          Inference Trade-offs Explained
-        </a>{" "}
-        (which serving lever helps which metric). This site is the silicon
-        underneath. How it was built, and how to check it:{" "}
+        Part of a family of sixteen companion sites in four tracks, all in the
+        site menu above: Foundations (
+        <a
+          href="https://transformer-decoder-explained.vercel.app"
+          className={A}
+        >
+          Decoder
+        </a>
+        ,{" "}
+        <a
+          href="https://transformer-training-explained.vercel.app"
+          className={A}
+        >
+          Training
+        </a>
+        ), Hardware (
+        <a href="https://gpu-kernels-explained.vercel.app" className={A}>
+          Kernels
+        </a>
+        , <strong className="font-medium">Systolic</strong>,{" "}
+        <a href="https://ai-accelerators-explained.vercel.app" className={A}>
+          Accelerators
+        </a>
+        ,{" "}
+        <a href="https://ai-racks-explained.vercel.app" className={A}>
+          Racks
+        </a>
+        ), Inference (
+        <a href="https://llm-inference-explained.vercel.app" className={A}>
+          Serving
+        </a>
+        ,{" "}
+        <a href="https://llm-architectures-explained.vercel.app" className={A}>
+          Architectures
+        </a>
+        ,{" "}
+        <a href="https://numerics-explained.vercel.app" className={A}>
+          Numerics
+        </a>
+        ,{" "}
+        <a
+          href="https://inference-tradeoffs-explained.vercel.app"
+          className={A}
+        >
+          Trade-offs
+        </a>
+        ) and Agents (
+        <a href="https://agent-harnesses-explained.vercel.app" className={A}>
+          Harnesses
+        </a>
+        ,{" "}
+        <a href="https://agent-protocols-explained.vercel.app" className={A}>
+          Protocols
+        </a>
+        ,{" "}
+        <a href="https://agent-context-explained.vercel.app" className={A}>
+          Context
+        </a>
+        ,{" "}
+        <a
+          href="https://agent-orchestration-explained.vercel.app"
+          className={A}
+        >
+          Orchestration
+        </a>
+        ,{" "}
+        <a href="https://agent-evals-explained.vercel.app" className={A}>
+          Evals
+        </a>
+        ,{" "}
+        <a href="https://agent-security-explained.vercel.app" className={A}>
+          Security
+        </a>
+        ). This site is the silicon inside a matrix engine. How it was built,
+        and how to check it:{" "}
         <Link href="/about" className={A}>
           about
         </Link>
