@@ -18,6 +18,8 @@ With the default problem ($A$ is <V of="demo.ws.M" fmt="int" /> × <V of="demo.w
 
 Change $M$, $K$ or $N$: the model re-runs and the animation restarts. More rows of $A$ use the same loaded weights again, which is why the TPU holds weights: in inference a weight matrix is reused by every token in a batch.
 
+**Checked against RTL.** This array, with the shadow weights chapter 5 adds, is also written in SystemVerilog; Verilator runs it and every register of every PE matches the model after every clock edge (<V of="wsrtl.values" fmt="int" /> values, <V of="wsrtl.mismatches" fmt="int" /> mismatches). [Chapter 5](/learn/05-tiling#rtl-waveform) shows the waveform beside the model.
+
 </Layer>
 
 <Layer kind="maths">

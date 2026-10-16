@@ -17,6 +17,18 @@ The model does more than draw this. Every cycle it checks that each PE swaps in 
 
 </Layer>
 
+<div id="rtl-waveform" />
+
+<RtlWaveWidget />
+
+<Layer kind="concept">
+
+**This machine is checked against RTL.** [`rtl/systolic_array_ws.sv`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/systolic_array_ws.sv) is the same array in SystemVerilog: four registers per PE (stationary weight, shadow weight, activation, partial sum), weights shifting down a chain of shadow registers while each column counts its load steps, and a 2-bit tile tag on every weight and activation. A PE latches an activation only when it holds a weight of the same tile, and swaps its shadow weight in on that cycle. Its testbench replays the model's inputs at the array's edges, and [`rtl/check_rtl.py`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/check_rtl.py) compares every register of every PE after every clock edge with the model's frames in <V of="rtl.simulator" fmt="raw" />: <V of="wsrtl.cases" fmt="int" /> problems (this chapter's four tiles, ragged tiles in $K$ and $N$, full-range INT8, $M = 1$, single weight registers, a one-word-per-cycle HBM fetch and a nine-tile run), <V of="wsrtl.values" fmt="int" /> register values over <V of="wsrtl.edges" fmt="int" /> edges, <V of="wsrtl.mismatches" fmt="int" /> mismatches. The results read back from the RTL equal $AB$ in every case. Compared with the model one cycle late, the same traces give <V of="wsrtl.shifted" fmt="int" /> mismatches: the comparison can fail. The panel above is that check for this chapter's problem, drawn from the simulator's VCD.
+
+What the testbench does not check is the controller: it drives the schedule this chapter derives, so the RTL proves the array's registers, swaps and partial sums, and the Python tests prove the schedule.
+
+</Layer>
+
 <Layer kind="concept">
 
 The weights have to come from somewhere. Set **HBM words per cycle** to a number and each tile's <V of="stream.tileWords" fmt="int" /> weights must first be fetched from off-chip memory into an on-chip weight buffer (purple bars). With **one** buffer, the next fetch can only start once the previous tile has been shifted into the array, and the fetches show up in the total: <V of="stream.bw1single" fmt="int" /> cycles at one word per cycle. With **two** buffers (ping-pong: fetch into one while the array reads the other) the fetch overlaps the stream: <V of="stream.bw1double" fmt="int" /> cycles, and <V of="stream.bw2" fmt="int" /> at two words per cycle. To hide a fetch completely the memory must deliver a tile's $kn$ weights while the previous tile streams for $\max(M, k)$ cycles: <V of="stream.need" fmt="num" /> words per cycle here.

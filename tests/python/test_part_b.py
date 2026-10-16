@@ -205,6 +205,58 @@ def test_mac_rtl_check_recorded():
     assert demo["ops"] == P.DEMO_PE["count"]
 
 
+def test_ws_rtl_check_recorded():
+    """rtl/check_rtl.py ran the weight-stationary array with shadow weights
+    in Verilator: every register of every PE matched simulate_ws_stream,
+    the results read back from the RTL are A B, and the one-cycle-late
+    negative control mismatches in every case."""
+    rec = json.loads((ROOT / "rtl" / "rtl_check.json").read_text())
+    assert rec["ok"]
+    ws = rec["ws"]
+    assert len(ws) == rec["wsTotals"]["cases"] >= 7
+    for c in ws:
+        assert c["mismatches"] == 0 and c["cResultsMatch"] and c["mismatchesShifted"] > 0
+        sched = S.stream_schedule(c["M"], c["K"], c["N"], c["rows"], c["cols"], c["bw"], c["buffers"], c["shadow"])
+        assert c["edges"] == sched["cycles"]
+        assert c["tiles"] == len(sched["tiles"])
+        assert c["values"] == c["edges"] * c["rows"] * c["cols"] * 4
+    assert rec["wsTotals"]["values"] == sum(c["values"] for c in ws)
+    demo = next(c for c in ws if c["name"] == "ws_demo")
+    d = S.DEMO["stream"]
+    assert (demo["M"], demo["K"], demo["N"], demo["rows"]) == (d["M"], d["K"], d["N"], d["array"])
+    wave = json.loads((ROOT / "rtl" / "ws_wave.json").read_text())
+    assert len(wave["edges"]) == demo["edges"]
+    assert sum(wave["mismatchesPerEdge"]["shifted"]) == demo["mismatchesShifted"]
+    assert sum(wave["mismatchesPerEdge"]["aligned"]) == 0
+
+
+def test_synthesis_recorded():
+    """rtl/synth_yosys.py: every design synthesised; the numbers the site
+    states hold (the multiplier grows about as its width squared; the
+    arrays grow with their PE count)."""
+    rec = json.loads((ROOT / "rtl" / "synth.json").read_text())
+    by = {d["key"]: d for d in rec["designs"]}
+    assert rec["tools"]["yosys"].startswith("Yosys 0.69")
+    mul = [by[f"mul-{w}"]["generic"]["gates"] for w in (4, 8, 11, 16, 24)]
+    assert mul == sorted(mul)
+    for w in (11, 16, 24):
+        ratio = by[f"mul-{w}"]["generic"]["gates"] / by["mul-8"]["generic"]["gates"]
+        assert 0.9 * (w / 8) ** 2 < ratio < 1.3 * (w / 8) ** 2
+    for kind in ("ws", "os"):
+        assert by[f"{kind}-16"]["xc7"]["dsp48"] == 256
+    # output-stationary: 16 times the PEs, about 16 times the transistors
+    t4, t16 = (by[f"os-{n}"]["generic"]["transistors"] for n in (4, 16))
+    assert 15 < t16 / t4 < 17.5
+    # weight-stationary: more, because row 0's PEs have no adder (their sums
+    # start at zero) and they are a quarter of a 4 x 4 but a sixteenth of a
+    # 16 x 16; a full PE costs about what the standalone PE does
+    w4, w16 = (by[f"ws-{n}"]["generic"]["transistors"] for n in (4, 16))
+    assert 16 < w16 / w4 < 24
+    pe = by["pe-ws"]["generic"]["transistors"]
+    assert 0.8 * pe < w16 / 256 < 1.1 * pe
+    assert by["mac-fp16"]["generic"]["transistors"] > 2 * by["mac-int8"]["generic"]["transistors"]
+
+
 # ---------------------------------------------------------------------------
 # Chapter 7: all-reduce on a torus
 # ---------------------------------------------------------------------------

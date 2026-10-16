@@ -2,9 +2,10 @@ import type { Route } from "next";
 import Link from "next/link";
 
 import { CheckedStrip, StartButton } from "@/components/ui/Landing";
-import { HeroWidget } from "@/components/interactive/lazy";
+import { HeroWidget, RtlWaveWidget } from "@/components/interactive/lazy";
 import { V } from "@/components/mdx/V";
 import { SECTIONS } from "@/lib/mdx/sections";
+import { HardwareWork } from "@/components/home/HardwareWork";
 
 const A =
   "focus-ring rounded underline decoration-accent/40 underline-offset-4 hover:decoration-accent";
@@ -38,12 +39,38 @@ export default function HomePage(): JSX.Element {
         </div>
       </div>
       <CheckedStrip href="/about#checked">
-        The cycle-accurate model&apos;s output-stationary frames match a
-        SystemVerilog array simulated in <V of="rtl.simulator" fmt="raw" /> on
-        every accumulator after every clock edge:{" "}
-        <V of="rtl.values" fmt="int" /> values,{" "}
-        <V of="rtl.mismatches" fmt="int" /> mismatches.
+        Checked against RTL: the weight-stationary array with shadow weights,
+        written in SystemVerilog and simulated in{" "}
+        <V of="rtl.simulator" fmt="raw" />, matches the cycle-accurate model on
+        every register after every clock edge: <V of="wsrtl.values" fmt="int" />{" "}
+        values, <V of="wsrtl.mismatches" fmt="int" /> mismatches (
+        <V of="wsrtl.allValues" fmt="int" /> across three designs). Synthesised
+        with Yosys: a 16 × 16 array is <V of="synth.ws16.gates" fmt="int" />{" "}
+        gates and <V of="synth.ws16.ffs" fmt="int" /> flip-flops.
       </CheckedStrip>
+      <section aria-labelledby="rtl-heading" className="mt-12" data-rtl-home>
+        <h2 id="rtl-heading" className="text-xl font-semibold tracking-tight">
+          The RTL beside the model
+        </h2>
+        <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          The waveform is the weight-stationary array in Verilator, read from
+          its VCD; below it is the model&apos;s frame for the same clock edge.
+          Step through: the shadow weights shift down each column while the
+          previous tile computes, and each PE swaps them in as the next
+          tile&apos;s first activation arrives. Shift the model by one cycle and
+          the mismatches light up (
+          <V of="wsrtl.demoShifted" fmt="int" /> of{" "}
+          <V of="wsrtl.demoValues" fmt="int" /> registers), the check&apos;s
+          negative control.{" "}
+          <Link href="/model#synthesis" className={A}>
+            Synthesis numbers
+          </Link>{" "}
+          for every PE and array size are on the model page.
+        </p>
+        <div className="mt-6">
+          <RtlWaveWidget testId="rtl-wave-home" />
+        </div>
+      </section>
       <section aria-labelledby="learn-heading" className="mt-12">
         <h2 id="learn-heading" className="text-xl font-semibold tracking-tight">
           What you&apos;ll learn
@@ -58,10 +85,11 @@ export default function HomePage(): JSX.Element {
         </p>
         <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
           Every animation is drawn from a cycle-accurate model of the array
-          (Python reference, exact TypeScript port). Its output-stationary
-          frames match a SystemVerilog array simulated in Verilator on every
-          accumulator after every clock edge: <V of="rtl.values" fmt="int" />{" "}
-          values, <V of="rtl.mismatches" fmt="int" /> mismatches.
+          (Python reference, exact TypeScript port). Its weight-stationary and
+          output-stationary frames, and the processing element&apos;s pipeline,
+          match SystemVerilog designs simulated in Verilator on every register
+          after every clock edge: <V of="wsrtl.allValues" fmt="int" /> values,{" "}
+          <V of="wsrtl.allMismatches" fmt="int" /> mismatches.
         </p>
       </section>
       <nav aria-label="Chapters" className="mt-12 grid gap-4 sm:grid-cols-2">
@@ -88,6 +116,7 @@ export default function HomePage(): JSX.Element {
         </Link>
         .
       </p>
+      <HardwareWork />
       <p className="mt-12 text-sm text-neutral-600 dark:text-neutral-400">
         Part of a family of sixteen companion sites in four tracks, all in the
         site menu above: Foundations (

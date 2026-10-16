@@ -19,3 +19,5 @@ src/data/
 src/lib/sa/tiny_cnn.json
 rtl/rtl_check.json
 reference/simfront_check.json
+rtl/synth.json
+rtl/ws_wave.json

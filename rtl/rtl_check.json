@@ -186,5 +186,162 @@
     "copied": "modules pe and systolic_array (the design, up to the TESTBENCH banner), unchanged",
     "path": "02_datapath_design/coding_challenges/challenge_01_systolic_array.sv",
     "repo": "https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators"
+  },
+  "ws": [
+    {
+      "K": 6,
+      "M": 6,
+      "N": 6,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 3,
+      "edges": 31,
+      "mismatches": 0,
+      "mismatchesShifted": 511,
+      "name": "ws_demo",
+      "range": [
+        -4,
+        5
+      ],
+      "rows": 3,
+      "shadow": true,
+      "tiles": 4,
+      "values": 1116
+    },
+    {
+      "K": 6,
+      "M": 5,
+      "N": 6,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 4,
+      "edges": 26,
+      "mismatches": 0,
+      "mismatchesShifted": 500,
+      "name": "ws_ragged",
+      "range": [
+        -4,
+        5
+      ],
+      "rows": 4,
+      "shadow": true,
+      "tiles": 4,
+      "values": 1664
+    },
+    {
+      "K": 8,
+      "M": 8,
+      "N": 8,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 4,
+      "edges": 42,
+      "mismatches": 0,
+      "mismatchesShifted": 1275,
+      "name": "ws_int8",
+      "range": [
+        -128,
+        127
+      ],
+      "rows": 4,
+      "shadow": true,
+      "tiles": 4,
+      "values": 2688
+    },
+    {
+      "K": 6,
+      "M": 1,
+      "N": 6,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 3,
+      "edges": 17,
+      "mismatches": 0,
+      "mismatchesShifted": 249,
+      "name": "ws_m1",
+      "range": [
+        -4,
+        5
+      ],
+      "rows": 3,
+      "shadow": true,
+      "tiles": 4,
+      "values": 612
+    },
+    {
+      "K": 6,
+      "M": 6,
+      "N": 6,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 3,
+      "edges": 52,
+      "mismatches": 0,
+      "mismatchesShifted": 578,
+      "name": "ws_single",
+      "range": [
+        -4,
+        5
+      ],
+      "rows": 3,
+      "shadow": false,
+      "tiles": 4,
+      "values": 1872
+    },
+    {
+      "K": 6,
+      "M": 6,
+      "N": 6,
+      "buffers": 1,
+      "bw": 1,
+      "cResultsMatch": true,
+      "cols": 3,
+      "edges": 64,
+      "mismatches": 0,
+      "mismatchesShifted": 542,
+      "name": "ws_hbm",
+      "range": [
+        -4,
+        5
+      ],
+      "rows": 3,
+      "shadow": true,
+      "tiles": 4,
+      "values": 2304
+    },
+    {
+      "K": 10,
+      "M": 12,
+      "N": 9,
+      "buffers": 2,
+      "bw": null,
+      "cResultsMatch": true,
+      "cols": 4,
+      "edges": 113,
+      "mismatches": 0,
+      "mismatchesShifted": 2497,
+      "name": "ws_nine",
+      "range": [
+        -128,
+        127
+      ],
+      "rows": 4,
+      "shadow": true,
+      "tiles": 9,
+      "values": 7232
+    }
+  ],
+  "wsTotals": {
+    "cases": 7,
+    "edges": 345,
+    "mismatches": 0,
+    "mismatchesShifted": 6152,
+    "tagBits": 2,
+    "values": 17488
   }
 }

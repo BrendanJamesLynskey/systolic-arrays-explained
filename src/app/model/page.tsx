@@ -6,7 +6,9 @@
  */
 import simfront from "../../../reference/simfront_check.json";
 import rtl from "../../../rtl/rtl_check.json";
+import synth from "../../../rtl/synth.json";
 
+import { RtlWaveWidget } from "@/components/interactive/lazy";
 import { int } from "@/lib/format";
 import { DATAFLOW_NAME } from "@/lib/sa/captions";
 import {
@@ -23,7 +25,7 @@ import { withShare } from "@/lib/share";
 export const metadata = withShare("/model", {
   title: "The model",
   description:
-    "The cycle-accurate systolic-array model: registers, timing and closed forms for weight-, output- and input-stationary dataflows, and its cycle-by-cycle cross-check against a SystemVerilog array in Verilator.",
+    "The cycle-accurate systolic-array model: registers, timing and closed forms for weight-, output- and input-stationary dataflows, its cycle-by-cycle cross-checks against SystemVerilog arrays in Verilator, and Yosys synthesis numbers for the PEs and arrays.",
 });
 
 const A =
@@ -244,9 +246,10 @@ export default function ModelPage(): JSX.Element {
           </table>
         </div>
         <p>
-          The weight- and input-stationary dataflows are not checked against RTL
-          here; they are checked against a direct matrix multiply, their
-          textbook timing and their closed forms.
+          The weight-stationary array has its own RTL (below). The
+          input-stationary dataflow is not checked against RTL; it is checked
+          against a direct matrix multiply, its textbook timing and its closed
+          forms.
         </p>
 
         <h2>The processing element against its RTL</h2>
@@ -313,6 +316,196 @@ export default function ModelPage(): JSX.Element {
             </tbody>
           </table>
         </div>
+
+        <h2 id="ws-rtl">The weight-stationary array against its RTL</h2>
+        <p>
+          <a href={repoFile("rtl/systolic_array_ws.sv")} className={A}>
+            rtl/systolic_array_ws.sv
+          </a>{" "}
+          is chapter 5&apos;s machine in SystemVerilog, written for this site:
+          an R × C grid of PEs, each with a stationary weight, a shadow weight,
+          an activation and a partial-sum register (valid bit,{" "}
+          {rtl.wsTotals.tagBits}
+          -bit tile tag, value). Weights shift down each column&apos;s shadow
+          chain; in load step <em>l</em> rows 0 … <em>l</em> shift and the rows
+          below hold (a per-column step counter restarted by{" "}
+          <code>w_first</code>). A PE latches an arriving activation only if its
+          stationary or shadow weight carries the same tile tag, and swaps the
+          shadow weight in on that edge. Row 0 starts each partial sum at zero;
+          a tile of <em>k</em> rows completes its sums in row <em>k</em> − 1.{" "}
+          <a href={repoFile("rtl/tb_ws_trace.sv")} className={A}>
+            rtl/tb_ws_trace.sv
+          </a>{" "}
+          replays the model&apos;s edge inputs (the weights entering each column
+          and the skewed activations entering each row, from{" "}
+          <code>simulate_ws_stream</code>) and prints every register after every
+          rising edge; edge <em>t</em> + 1 is the model&apos;s cycle <em>t</em>.
+          The check compares all four registers of every PE (an empty
+          register&apos;s stale bits are not compared), reads the results back
+          from each tile&apos;s last row and requires them to equal <em>AB</em>,
+          and records the negative control: every case mismatches against the
+          model one cycle late. The testbench drives the schedule, so this
+          checks the array, not a controller. Two mutations (shifting every
+          shadow row on every load step; latching activations whatever their
+          tile) were each caught by the check when it was written.
+        </p>
+        <div
+          className="overflow-x-auto"
+          tabIndex={0}
+          role="region"
+          aria-label="The weight-stationary RTL check, case by case (scrolls sideways)"
+        >
+          <table className="w-full text-sm" data-testid="ws-rtl-table">
+            <thead>
+              <tr>
+                <th className={TH}>Case</th>
+                <th className={TH}>M × K × N</th>
+                <th className={TH}>Array</th>
+                <th className={TH}>Weights</th>
+                <th className={TH}>Tiles</th>
+                <th className={TH}>Edges</th>
+                <th className={TH}>Registers compared</th>
+                <th className={TH}>Mismatches</th>
+                <th className={TH}>Shifted one cycle</th>
+                <th className={TH}>C = AB</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rtl.ws.map((c) => (
+                <tr
+                  key={c.name}
+                  className="border-t border-neutral-200 dark:border-neutral-800"
+                >
+                  <td className={TD}>{c.name}</td>
+                  <td className={TD}>
+                    {c.M} × {c.K} × {c.N}
+                  </td>
+                  <td className={TD}>
+                    {c.rows} × {c.cols}
+                  </td>
+                  <td className={TD}>
+                    {c.shadow ? "shadow" : "single"}
+                    {c.bw ? `, HBM ${c.bw} w/cycle, ${c.buffers} buffer` : ""}
+                  </td>
+                  <td className={TD}>{c.tiles}</td>
+                  <td className={TD}>{c.edges}</td>
+                  <td className={TD}>{int(c.values)}</td>
+                  <td className={TD}>{c.mismatches}</td>
+                  <td className={TD}>{int(c.mismatchesShifted)}</td>
+                  <td className={TD}>{c.cResultsMatch ? "yes" : "no"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p>
+          The panel draws the first case from the simulator&apos;s VCD (
+          <a href={repoFile("rtl/ws_wave.json")} className={A}>
+            rtl/ws_wave.json
+          </a>
+          , written by the same script; it checks that the VCD and the printed
+          trace agree) beside the TypeScript model.
+        </p>
+        <RtlWaveWidget testId="rtl-wave-model" />
+
+        <h2 id="synthesis">Synthesis</h2>
+        <p>
+          <a href={repoFile("rtl/synth_yosys.py")} className={A}>
+            rtl/synth_yosys.py
+          </a>{" "}
+          synthesises the RTL with{" "}
+          {synth.tools.yosys.replace(/ \(git .*\)/, "")} (the YoWASP WebAssembly
+          build, pinned in <code>rtl/requirements-synth.txt</code>, so it gives
+          the same netlist on any machine; CI repeats it and fails if{" "}
+          <code>rtl/synth.json</code> changes). The MAC unit goes through sv2v{" "}
+          {synth.tools.sv2v} first, because Yosys&apos;s front end does not
+          accept its <code>break</code>. Two flows:
+        </p>
+        <ul>
+          <li>
+            <strong>Generic gates:</strong>{" "}
+            <code>{synth.tools.flows.generic}</code>. Gates are Yosys&apos;s
+            internal two-input cells and MUX; depth is the number of gates on
+            the longest path between flip-flops or ports (<code>ltp</code>);
+            transistors is Yosys&apos;s estimate for static CMOS after every
+            flip-flop becomes a plain D flip-flop (its enable and reset become
+            gates). It is an area proxy with no standard-cell library, no wires,
+            no process node and no timing.
+          </li>
+          <li>
+            <strong>AMD 7-series:</strong> <code>{synth.tools.flows.xc7}</code>.
+            Yosys&apos;s own FPGA mapping, not Vivado&apos;s, with no placement
+            or routing, so no Fmax. Multiplies map to DSP48E1 slices; the
+            output-stationary PE&apos;s multiply-accumulate folds into one DSP48
+            with its accumulator, which is why that array needs almost no LUTs.
+          </li>
+        </ul>
+        {(["pe", "array", "mul"] as const).map((grp) => (
+          <div
+            key={grp}
+            className="overflow-x-auto"
+            tabIndex={0}
+            role="region"
+            aria-label={`Synthesis results: ${grp === "pe" ? "processing elements" : grp === "array" ? "arrays" : "multipliers"} (scrolls sideways)`}
+          >
+            <table className="w-full text-sm" data-testid={`synth-${grp}`}>
+              <thead>
+                <tr>
+                  <th className={TH}>Design</th>
+                  <th className={TH}>Gates</th>
+                  <th className={TH}>Flip-flops</th>
+                  <th className={TH}>Depth</th>
+                  <th className={TH}>Transistors (est.)</th>
+                  <th className={TH}>7-series LUTs</th>
+                  <th className={TH}>FFs</th>
+                  <th className={TH}>DSP48</th>
+                  <th className={TH}>CARRY4</th>
+                </tr>
+              </thead>
+              <tbody>
+                {synth.designs
+                  .filter((d) => d.group === grp)
+                  .map((d) => (
+                    <tr
+                      key={d.key}
+                      className="border-t border-neutral-200 dark:border-neutral-800"
+                    >
+                      <td className="py-1 pr-3">
+                        {d.label.replace(/ x /g, " × ")}
+                      </td>
+                      <td className={TD}>{int(d.generic.gates)}</td>
+                      <td className={TD}>{int(d.generic.flipFlops)}</td>
+                      <td className={TD}>{d.generic.depth}</td>
+                      <td className={TD}>{int(d.generic.transistors)}</td>
+                      <td className={TD}>{int(d.xc7.luts)}</td>
+                      <td className={TD}>{int(d.xc7.flipFlops)}</td>
+                      <td className={TD}>{d.xc7.dsp48}</td>
+                      <td className={TD}>{d.xc7.carry4}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+        <p>
+          The arrays scale with their PE count while the logic depth hardly
+          moves: a systolic array&apos;s wires are all neighbour to neighbour.
+          The 16 × 16 output-stationary array has 16 times the 4 × 4&apos;s PEs
+          and{" "}
+          {(
+            synth.designs.find((d) => d.key === "os-16")!.generic.transistors /
+            synth.designs.find((d) => d.key === "os-4")!.generic.transistors
+          ).toFixed(1)}{" "}
+          times its transistors. The weight-stationary array grows faster (
+          {(
+            synth.designs.find((d) => d.key === "ws-16")!.generic.transistors /
+            synth.designs.find((d) => d.key === "ws-4")!.generic.transistors
+          ).toFixed(1)}{" "}
+          times), because its top row&apos;s PEs need no adder (their partial
+          sums start at zero): a quarter of a 4 × 4, a sixteenth of a 16 × 16.
+          Both arrays expose every PE&apos;s registers as ports, as the trace
+          check needs, so no register is optimised away.
+        </p>
 
         <h2>Tiles back to back</h2>
         <p>

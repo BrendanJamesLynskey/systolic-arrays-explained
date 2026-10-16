@@ -82,8 +82,9 @@ async function main(): Promise<void> {
   const checks: Promise<Result>[] = [
     checkPage(base, "/", [
       "Systolic Arrays Explained",
-      `data-v="rtl.values">${int(lookup("rtl.values") as number)}<`,
-      `data-v="rtl.mismatches">0<`,
+      `data-v="wsrtl.values">${int(lookup("wsrtl.values") as number)}<`,
+      `data-v="wsrtl.mismatches">0<`,
+      "data-hardware-work",
       ...SWITCH,
     ]),
     checkPage(base, "/model", [
