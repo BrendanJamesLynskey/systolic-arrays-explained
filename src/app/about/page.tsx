@@ -23,7 +23,7 @@ import { withShare } from "@/lib/share";
 export const metadata = withShare("/about", {
   title: "About",
   description:
-    "How Systolic Arrays Explained's cycle-accurate model is checked against a direct matrix multiply, its own closed forms and a SystemVerilog array in Verilator, and what is illustrative.",
+    "How Systolic Arrays Explained's cycle-accurate model is checked against a direct matrix multiply, its own closed forms and SystemVerilog arrays in Verilator, how the RTL was synthesised with Yosys, and what is illustrative.",
 });
 
 const A =
@@ -132,7 +132,45 @@ export default function AboutPage(): JSX.Element {
             author&apos;s three-stage MAC unit, the PE of chapter 6, and
             compares every pipeline register after every edge:{" "}
             <V of="mac.values" fmt="int" /> values,{" "}
-            <V of="mac.mismatches" fmt="int" /> mismatches. CI repeats both.
+            <V of="mac.mismatches" fmt="int" /> mismatches. And it runs the
+            weight-stationary array with shadow weights, the machine of chapters
+            2 and 5, written in SystemVerilog for this site (
+            <a href={repoFile("rtl/systolic_array_ws.sv")} className={A}>
+              rtl/systolic_array_ws.sv
+            </a>
+            ): every stationary weight, shadow weight, activation and partial
+            sum after every edge on <V of="wsrtl.cases" fmt="int" /> problems
+            (up to <V of="wsrtl.maxTiles" fmt="int" /> tiles, full-range INT8, M
+            = 1, an HBM-limited fetch), <V of="wsrtl.values" fmt="int" />{" "}
+            values, <V of="wsrtl.mismatches" fmt="int" /> mismatches, with the
+            results read back from the RTL equal to A B. Shifting the model by
+            one cycle gives <V of="wsrtl.shifted" fmt="int" /> mismatches, so
+            the comparison can fail. CI repeats all three;{" "}
+            <Link href="/learn/05-tiling#rtl-waveform" className={A}>
+              chapter 5
+            </Link>{" "}
+            shows the waveform beside the model.
+          </li>
+          <li id="synthesis">
+            <strong>Synthesised.</strong>{" "}
+            <a href={repoFile("rtl/synth_yosys.py")} className={A}>
+              rtl/synth_yosys.py
+            </a>{" "}
+            synthesises the PEs, the MAC unit and both arrays with Yosys{" "}
+            <V of="synth.yosys" fmt="raw" /> (a pinned WebAssembly build, so the
+            numbers reproduce anywhere), to generic gates with Yosys&apos;s CMOS
+            transistor estimate and to AMD 7-series LUTs and DSP48s. A 16 × 16
+            weight-stationary array is <V of="synth.ws16.gates" fmt="int" />{" "}
+            gates and <V of="synth.ws16.ffs" fmt="int" /> flip-flops (about{" "}
+            <V of="synth.ratio.ws16PerPe" fmt="int" /> transistors per PE); on
+            7-series it maps to <V of="synth.ws16.dsp" fmt="int" /> DSP48s and{" "}
+            <V of="synth.ws16.luts" fmt="int" /> LUTs. These are gate counts and
+            an area proxy, not a placed design: no standard-cell library, no
+            wires, no timing. The{" "}
+            <Link href="/model#synthesis" className={A}>
+              model page
+            </Link>{" "}
+            has every design and the exact flow.
           </li>
           <li>
             <strong>Against another simulator.</strong> Chapter 9&apos;s

@@ -15,6 +15,8 @@ const ANIMATIONS = [
   ["/learn/04-skew-fill-drain", "wavefront-widget"],
   ["/learn/04-skew-fill-drain", "util-widget"],
   ["/learn/05-tiling", "tile-stream-widget"],
+  ["/learn/05-tiling", "rtl-wave-widget"],
+  ["/", "rtl-wave-home"],
   ["/learn/05-tiling", "bandwidth-widget"],
   ["/learn/06-inside-a-pe", "pe-widget"],
   ["/learn/07-the-tpu", "torus-widget"],
@@ -54,7 +56,9 @@ for (const scheme of ["light", "dark"] as const) {
           const fig = page.getByTestId(id);
           await expect(fig).toBeVisible();
           await fig.scrollIntoViewIfNeeded();
-          // it plays (it may already be playing: it starts when visible)
+          // it plays by itself once in view (wait for that, so the pause
+          // below cannot race the visibility observer)
+          await expect(fig).toHaveAttribute("data-playing", "true");
           await pause(fig);
           await fig
             .getByRole("button", { name: "Reset to the first step" })

@@ -99,10 +99,17 @@ for (const f of FILES) {
     it("links only to real pages, deck slides and checked papers", () => {
       const slugs = new Set<string>(SECTIONS.map((s) => s.slug));
       for (const m of src.matchAll(/\]\((\/[^)]+)\)/g)) {
-        const href = m[1]!;
+        const [href, frag] = m[1]!.split("#") as [string, string | undefined];
         if (href.startsWith("/learn/"))
           expect(slugs.has(href.slice(7)), href).toBe(true);
         else expect(["/model", "/about", "/learn"]).toContain(href);
+        // a fragment must be an id on the target page
+        if (frag) {
+          const target = href.startsWith("/learn/")
+            ? path.join(DIR, `${href.slice(7)}.mdx`)
+            : path.join(ROOT, `src/app${href}/page.tsx`);
+          expect(readFileSync(target, "utf8"), m[1]).toContain(`id="${frag}"`);
+        }
       }
       for (const m of src.matchAll(
         /https:\/\/brendanjameslynskey\.github\.io\/([A-Za-z0-9_]+)\/(#[a-z0-9-]+)?/g,

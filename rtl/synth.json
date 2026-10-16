@@ -1,0 +1,761 @@
+{
+  "designs": [
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 18,
+          "$_AND_": 133,
+          "$_MUX_": 11,
+          "$_NAND_": 322,
+          "$_NOR_": 3,
+          "$_NOT_": 2,
+          "$_ORNOT_": 44,
+          "$_OR_": 26,
+          "$_SDFFE_PN0P_": 64,
+          "$_SDFF_PN0_": 1,
+          "$_XNOR_": 121,
+          "$_XOR_": 189
+        },
+        "cells": 934,
+        "depth": 66,
+        "flipFlops": 65,
+        "gates": 869,
+        "transistors": 9070
+      },
+      "group": "pe",
+      "key": "pe-ws",
+      "label": "Weight-stationary PE (INT8, shadow weight)",
+      "params": {},
+      "top": "ws_pe",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "DSP48E1": 1,
+          "FDRE": 33,
+          "IBUF": 57,
+          "INV": 1,
+          "LUT2": 2,
+          "LUT3": 1,
+          "LUT4": 1,
+          "LUT5": 1,
+          "LUT6": 8,
+          "OBUF": 68
+        },
+        "carry4": 0,
+        "dsp48": 1,
+        "flipFlops": 33,
+        "levels": 12,
+        "luts": 13,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 21,
+          "$_AND_": 108,
+          "$_MUX_": 3,
+          "$_NAND_": 355,
+          "$_NOR_": 2,
+          "$_NOT_": 1,
+          "$_ORNOT_": 31,
+          "$_OR_": 24,
+          "$_SDFFE_PP0P_": 32,
+          "$_SDFF_PP0_": 17,
+          "$_XNOR_": 94,
+          "$_XOR_": 213
+        },
+        "cells": 901,
+        "depth": 62,
+        "flipFlops": 49,
+        "gates": 852,
+        "transistors": 8010
+      },
+      "group": "pe",
+      "key": "pe-os",
+      "label": "Output-stationary PE (INT8)",
+      "params": {},
+      "top": "pe",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "DSP48E1": 1,
+          "FDRE": 17,
+          "IBUF": 20,
+          "LUT2": 1,
+          "OBUF": 49
+        },
+        "carry4": 0,
+        "dsp48": 1,
+        "flipFlops": 17,
+        "levels": 4,
+        "luts": 1,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 12,
+          "$_AND_": 132,
+          "$_MUX_": 3,
+          "$_NAND_": 338,
+          "$_NOT_": 1,
+          "$_ORNOT_": 12,
+          "$_OR_": 50,
+          "$_SDFFE_PN0P_": 32,
+          "$_SDFF_PN0_": 37,
+          "$_XNOR_": 39,
+          "$_XOR_": 154
+        },
+        "cells": 810,
+        "depth": 51,
+        "flipFlops": 69,
+        "gates": 741,
+        "transistors": 7258
+      },
+      "group": "pe",
+      "key": "mac-int8",
+      "label": "MAC unit, INT8 mode only",
+      "params": {},
+      "top": "mac_int8_only",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 9,
+          "DSP48E1": 1,
+          "FDRE": 37,
+          "IBUF": 36,
+          "INV": 1,
+          "LUT2": 33,
+          "LUT3": 1,
+          "LUT5": 16,
+          "LUT6": 16,
+          "OBUF": 33
+        },
+        "carry4": 9,
+        "dsp48": 1,
+        "flipFlops": 37,
+        "levels": 92,
+        "luts": 66,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 79,
+          "$_AND_": 592,
+          "$_DFF_P_": 1,
+          "$_MUX_": 269,
+          "$_NAND_": 883,
+          "$_NOR_": 68,
+          "$_NOT_": 29,
+          "$_ORNOT_": 159,
+          "$_OR_": 97,
+          "$_SDFFE_PN0P_": 32,
+          "$_SDFF_PN0_": 39,
+          "$_SDFF_PP0_": 28,
+          "$_XNOR_": 79,
+          "$_XOR_": 240
+        },
+        "cells": 2595,
+        "depth": 174,
+        "flipFlops": 100,
+        "gates": 2495,
+        "transistors": 19652
+      },
+      "group": "pe",
+      "key": "mac-fp16",
+      "label": "MAC unit, FP16 mode only",
+      "params": {},
+      "top": "mac_fp16_only",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 51,
+          "DSP48E1": 1,
+          "FDRE": 101,
+          "IBUF": 36,
+          "INV": 5,
+          "LUT1": 1,
+          "LUT2": 173,
+          "LUT3": 145,
+          "LUT4": 132,
+          "LUT5": 159,
+          "LUT6": 95,
+          "MUXF7": 5,
+          "MUXF8": 1,
+          "OBUF": 33
+        },
+        "carry4": 51,
+        "dsp48": 1,
+        "flipFlops": 101,
+        "levels": 410,
+        "luts": 705,
+        "muxf": 6
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 82,
+          "$_AND_": 698,
+          "$_MUX_": 279,
+          "$_NAND_": 1268,
+          "$_NOR_": 70,
+          "$_NOT_": 48,
+          "$_ORNOT_": 182,
+          "$_OR_": 126,
+          "$_SDFFE_PN0P_": 64,
+          "$_SDFF_PN0_": 56,
+          "$_SDFF_PP0_": 28,
+          "$_XNOR_": 125,
+          "$_XOR_": 360
+        },
+        "cells": 3386,
+        "depth": 176,
+        "flipFlops": 148,
+        "gates": 3238,
+        "transistors": 26056
+      },
+      "group": "pe",
+      "key": "mac-both",
+      "label": "MAC unit, both modes",
+      "params": {},
+      "top": "mac_unit_mixed_precision",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 62,
+          "DSP48E1": 2,
+          "FDRE": 133,
+          "IBUF": 37,
+          "INV": 4,
+          "LUT2": 235,
+          "LUT3": 164,
+          "LUT4": 154,
+          "LUT5": 190,
+          "LUT6": 69,
+          "MUXF7": 1,
+          "OBUF": 65
+        },
+        "carry4": 62,
+        "dsp48": 2,
+        "flipFlops": 133,
+        "levels": 432,
+        "luts": 812,
+        "muxf": 1
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 116,
+          "$_AND_": 1524,
+          "$_MUX_": 191,
+          "$_NAND_": 3505,
+          "$_NOR_": 28,
+          "$_NOT_": 39,
+          "$_ORNOT_": 342,
+          "$_OR_": 282,
+          "$_SDFFE_PN0P_": 856,
+          "$_SDFF_PN0_": 16,
+          "$_XNOR_": 790,
+          "$_XOR_": 2313
+        },
+        "cells": 10002,
+        "depth": 66,
+        "flipFlops": 872,
+        "gates": 9130,
+        "transistors": 102010
+      },
+      "group": "array",
+      "key": "ws-4",
+      "label": "Weight-stationary array 4 x 4",
+      "params": {
+        "COLS": 4,
+        "ROWS": 4
+      },
+      "top": "systolic_array_ws",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 4,
+          "DSP48E1": 16,
+          "FDRE": 540,
+          "IBUF": 94,
+          "INV": 1,
+          "LUT2": 40,
+          "LUT3": 60,
+          "LUT4": 12,
+          "LUT5": 20,
+          "LUT6": 96,
+          "OBUF": 1088
+        },
+        "carry4": 4,
+        "dsp48": 16,
+        "flipFlops": 540,
+        "levels": 29,
+        "luts": 228,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 625,
+          "$_AND_": 6780,
+          "$_MUX_": 748,
+          "$_NAND_": 17977,
+          "$_NOR_": 114,
+          "$_NOT_": 139,
+          "$_ORNOT_": 1842,
+          "$_OR_": 1587,
+          "$_SDFFE_PN0P_": 3768,
+          "$_SDFF_PN0_": 64,
+          "$_XNOR_": 4964,
+          "$_XOR_": 11224
+        },
+        "cells": 49832,
+        "depth": 68,
+        "flipFlops": 3832,
+        "gates": 46000,
+        "transistors": 493390
+      },
+      "group": "array",
+      "key": "ws-8",
+      "label": "Weight-stationary array 8 x 8",
+      "params": {
+        "COLS": 8,
+        "ROWS": 8
+      },
+      "top": "systolic_array_ws",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 8,
+          "DSP48E1": 64,
+          "FDRE": 2144,
+          "IBUF": 186,
+          "INV": 1,
+          "LUT2": 152,
+          "LUT3": 178,
+          "LUT4": 61,
+          "LUT5": 73,
+          "LUT6": 448,
+          "OBUF": 4352
+        },
+        "carry4": 8,
+        "dsp48": 64,
+        "flipFlops": 2144,
+        "levels": 48,
+        "luts": 912,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 3054,
+          "$_AND_": 28748,
+          "$_MUX_": 2964,
+          "$_NAND_": 79650,
+          "$_NOR_": 561,
+          "$_NOT_": 553,
+          "$_ORNOT_": 7835,
+          "$_OR_": 7840,
+          "$_SDFFE_PN0P_": 15744,
+          "$_SDFF_PN0_": 256,
+          "$_XNOR_": 22866,
+          "$_XOR_": 49321
+        },
+        "cells": 219392,
+        "depth": 68,
+        "flipFlops": 16000,
+        "gates": 203392,
+        "transistors": 2145552
+      },
+      "group": "array",
+      "key": "ws-16",
+      "label": "Weight-stationary array 16 x 16",
+      "params": {
+        "COLS": 16,
+        "ROWS": 16
+      },
+      "top": "systolic_array_ws",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "CARRY4": 32,
+          "DSP48E1": 256,
+          "FDRE": 8528,
+          "IBUF": 370,
+          "INV": 1,
+          "LUT2": 629,
+          "LUT3": 516,
+          "LUT4": 303,
+          "LUT5": 303,
+          "LUT6": 1920,
+          "OBUF": 17408
+        },
+        "carry4": 32,
+        "dsp48": 256,
+        "flipFlops": 8528,
+        "levels": 86,
+        "luts": 3671,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 301,
+          "$_AND_": 1695,
+          "$_MUX_": 49,
+          "$_NAND_": 5694,
+          "$_NOR_": 30,
+          "$_NOT_": 16,
+          "$_ORNOT_": 399,
+          "$_OR_": 488,
+          "$_SDFFE_PP0P_": 512,
+          "$_SDFF_PN0_": 100,
+          "$_SDFF_PP0_": 204,
+          "$_XNOR_": 1461,
+          "$_XOR_": 3461
+        },
+        "cells": 14410,
+        "depth": 63,
+        "flipFlops": 816,
+        "gates": 13594,
+        "transistors": 128870
+      },
+      "group": "array",
+      "key": "os-4",
+      "label": "Output-stationary array 4 x 4",
+      "params": {
+        "N": 4
+      },
+      "top": "systolic_array",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "DSP48E1": 16,
+          "FDRE": 176,
+          "IBUF": 68,
+          "INV": 1,
+          "LUT2": 2,
+          "OBUF": 513
+        },
+        "carry4": 0,
+        "dsp48": 16,
+        "flipFlops": 176,
+        "levels": 11,
+        "luts": 2,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 1191,
+          "$_AND_": 6781,
+          "$_MUX_": 197,
+          "$_NAND_": 22835,
+          "$_NOR_": 115,
+          "$_NOT_": 67,
+          "$_ORNOT_": 1474,
+          "$_OR_": 2020,
+          "$_SDFFE_PP0P_": 2048,
+          "$_SDFF_PN0_": 456,
+          "$_SDFF_PP0_": 952,
+          "$_XNOR_": 5683,
+          "$_XOR_": 14007
+        },
+        "cells": 57826,
+        "depth": 64,
+        "flipFlops": 3456,
+        "gates": 54370,
+        "transistors": 520718
+      },
+      "group": "array",
+      "key": "os-8",
+      "label": "Output-stationary array 8 x 8",
+      "params": {
+        "N": 8
+      },
+      "top": "systolic_array",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "DSP48E1": 64,
+          "FDRE": 1152,
+          "IBUF": 132,
+          "INV": 1,
+          "LUT2": 2,
+          "OBUF": 2049
+        },
+        "carry4": 0,
+        "dsp48": 64,
+        "flipFlops": 1152,
+        "levels": 19,
+        "luts": 2,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 4746,
+          "$_AND_": 26994,
+          "$_MUX_": 790,
+          "$_NAND_": 91263,
+          "$_NOR_": 444,
+          "$_NOT_": 263,
+          "$_ORNOT_": 5889,
+          "$_OR_": 8173,
+          "$_SDFFE_PP0P_": 8192,
+          "$_SDFF_PN0_": 1936,
+          "$_SDFF_PP0_": 4080,
+          "$_XNOR_": 22858,
+          "$_XOR_": 55867
+        },
+        "cells": 231495,
+        "depth": 64,
+        "flipFlops": 14208,
+        "gates": 217287,
+        "transistors": 2092474
+      },
+      "group": "array",
+      "key": "os-16",
+      "label": "Output-stationary array 16 x 16",
+      "params": {
+        "N": 16
+      },
+      "top": "systolic_array",
+      "xc7": {
+        "byType": {
+          "BUFG": 1,
+          "DSP48E1": 256,
+          "FDRE": 5504,
+          "IBUF": 260,
+          "INV": 1,
+          "LUT2": 2,
+          "OBUF": 8193
+        },
+        "carry4": 0,
+        "dsp48": 256,
+        "flipFlops": 5504,
+        "levels": 35,
+        "luts": 2,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_AND_": 21,
+          "$_NAND_": 27,
+          "$_OR_": 1,
+          "$_XNOR_": 5,
+          "$_XOR_": 15
+        },
+        "cells": 69,
+        "depth": 14,
+        "flipFlops": 0,
+        "gates": 69,
+        "transistors": 480
+      },
+      "group": "mul",
+      "key": "mul-4",
+      "label": "Unsigned 4 x 4 multiplier",
+      "params": {
+        "W": 4
+      },
+      "top": "umul",
+      "xc7": {
+        "byType": {
+          "CARRY4": 2,
+          "IBUF": 8,
+          "LUT2": 5,
+          "LUT3": 2,
+          "LUT4": 4,
+          "LUT5": 4,
+          "LUT6": 7,
+          "MUXF7": 1,
+          "OBUF": 8
+        },
+        "carry4": 2,
+        "dsp48": 0,
+        "flipFlops": 0,
+        "levels": 7,
+        "luts": 22,
+        "muxf": 1
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 1,
+          "$_AND_": 78,
+          "$_NAND_": 148,
+          "$_ORNOT_": 1,
+          "$_XNOR_": 11,
+          "$_XOR_": 104
+        },
+        "cells": 343,
+        "depth": 30,
+        "flipFlops": 0,
+        "gates": 343,
+        "transistors": 2452
+      },
+      "group": "mul",
+      "key": "mul-8",
+      "label": "Unsigned 8 x 8 multiplier",
+      "params": {
+        "W": 8
+      },
+      "top": "umul",
+      "xc7": {
+        "byType": {
+          "DSP48E1": 1,
+          "IBUF": 16,
+          "OBUF": 16
+        },
+        "carry4": 0,
+        "dsp48": 1,
+        "flipFlops": 0,
+        "levels": 3,
+        "luts": 0,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 1,
+          "$_AND_": 147,
+          "$_NAND_": 302,
+          "$_ORNOT_": 1,
+          "$_OR_": 1,
+          "$_XNOR_": 14,
+          "$_XOR_": 214
+        },
+        "cells": 680,
+        "depth": 42,
+        "flipFlops": 0,
+        "gates": 680,
+        "transistors": 4844
+      },
+      "group": "mul",
+      "key": "mul-11",
+      "label": "Unsigned 11 x 11 multiplier",
+      "params": {
+        "W": 11
+      },
+      "top": "umul",
+      "xc7": {
+        "byType": {
+          "DSP48E1": 1,
+          "IBUF": 22,
+          "OBUF": 22
+        },
+        "carry4": 0,
+        "dsp48": 1,
+        "flipFlops": 0,
+        "levels": 3,
+        "luts": 0,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 4,
+          "$_AND_": 313,
+          "$_MUX_": 1,
+          "$_NAND_": 678,
+          "$_NOR_": 1,
+          "$_ORNOT_": 3,
+          "$_OR_": 2,
+          "$_XNOR_": 23,
+          "$_XOR_": 485
+        },
+        "cells": 1510,
+        "depth": 63,
+        "flipFlops": 0,
+        "gates": 1510,
+        "transistors": 10756
+      },
+      "group": "mul",
+      "key": "mul-16",
+      "label": "Unsigned 16 x 16 multiplier",
+      "params": {
+        "W": 16
+      },
+      "top": "umul",
+      "xc7": {
+        "byType": {
+          "DSP48E1": 1,
+          "IBUF": 32,
+          "OBUF": 32
+        },
+        "carry4": 0,
+        "dsp48": 1,
+        "flipFlops": 0,
+        "levels": 3,
+        "luts": 0,
+        "muxf": 0
+      }
+    },
+    {
+      "generic": {
+        "byType": {
+          "$_ANDNOT_": 2,
+          "$_AND_": 688,
+          "$_MUX_": 2,
+          "$_NAND_": 1592,
+          "$_NOR_": 3,
+          "$_NOT_": 1,
+          "$_ORNOT_": 2,
+          "$_OR_": 5,
+          "$_XNOR_": 43,
+          "$_XOR_": 1118
+        },
+        "cells": 3456,
+        "depth": 91,
+        "flipFlops": 0,
+        "gates": 3456,
+        "transistors": 24520
+      },
+      "group": "mul",
+      "key": "mul-24",
+      "label": "Unsigned 24 x 24 multiplier",
+      "params": {
+        "W": 24
+      },
+      "top": "umul",
+      "xc7": {
+        "byType": {
+          "DSP48E1": 2,
+          "IBUF": 48,
+          "OBUF": 48
+        },
+        "carry4": 0,
+        "dsp48": 2,
+        "flipFlops": 0,
+        "levels": 4,
+        "luts": 0,
+        "muxf": 0
+      }
+    }
+  ],
+  "tools": {
+    "flows": {
+      "generic": "synth -flatten; ltp -noff; dfflegalize -cell $_DFF_P_ 0; stat -tech cmos",
+      "xc7": "synth_xilinx -family xc7 -flatten; ltp -noff"
+    },
+    "sv2v": "0.0.13",
+    "yosys": "Yosys 0.69 (git 9f75ca1f9)"
+  }
+}

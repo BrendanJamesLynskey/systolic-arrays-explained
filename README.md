@@ -9,9 +9,32 @@ inside one PE, a TPU pod's all-reduce on a torus, other ways to build a
 matrix engine, and an ONNX graph lowered onto the array. Every chapter is
 built around an animation, and every frame of every animation is a step of
 a **cycle-accurate model** whose TypeScript port matches its Python
-reference exactly; the array's output-stationary frames and the PE's
-pipeline registers match the author's **SystemVerilog designs simulated in
-Verilator** after every clock edge.
+reference exactly; the array's weight-stationary frames (with shadow
+weights) and output-stationary frames, and the PE's pipeline registers,
+match **SystemVerilog designs simulated in Verilator** after every clock
+edge, and the RTL is **synthesised with Yosys** (gate, flip-flop and
+7-series LUT/DSP counts).
+
+## Verified against RTL
+
+![The weight-stationary array in Verilator: VCD waveform beside the model's frame, edge by edge](docs/media/rtl-waveform.gif)
+
+- **Weight-stationary array with shadow weights**
+  ([`rtl/systolic_array_ws.sv`](rtl/systolic_array_ws.sv), written for this
+  site): every stationary weight, shadow weight, activation and partial sum
+  of every PE after every edge, on 7 problems (up to 9 tiles, full-range
+  INT8, M = 1, single weight registers, an HBM-limited fetch): **17,488 register
+  values, 0 mismatches**; the results read back from the RTL equal A B.
+  Shifted one cycle (the negative control) the same traces give 6,152
+  mismatches.
+- With the output-stationary array and the MAC unit, **29,180 register values,
+  0 mismatches** across three designs.
+- **Synthesis** ([`rtl/synth_yosys.py`](rtl/synth_yosys.py), Yosys 0.69,
+  pinned YoWASP build): a 16 × 16 weight-stationary array is 203,392 gates and
+  16,000 flip-flops (about 2.1 million transistors in Yosys's CMOS estimate; 256 DSP48 and
+  3,671 LUTs on AMD 7-series); an 11 × 11 multiplier is 1.98 times an 8 × 8
+  (the square law says 1.89). Gate counts and an area proxy, not a placed
+  design: no standard-cell library, no wires, no timing.
 
 It is the sixth of a family of companion sites: the
 [Transformer Decoder Explainer](https://transformer-decoder-explained.vercel.app/)
@@ -171,8 +194,30 @@ Chapters 5 to 9 add four more references, each with a line-for-line port:
   [`rtl/traces/`](rtl/traces/)). `--shift 1` compares each edge with the
   next cycle instead and reports mismatches in every case, so the comparison
   can fail. CI repeats the run. The same testbench in Vivado xsim 2025.2
-  gives byte-identical traces (run locally; CI has no Vivado). Weight- and input-stationary are checked
-  against the matmul, the timing and the closed forms, not RTL.
+  gives byte-identical traces (run locally; CI has no Vivado).
+  Input-stationary is checked against the matmul, the timing and the closed
+  forms, not RTL.
+- **The weight-stationary array against its RTL**: the same script builds
+  [`rtl/systolic_array_ws.sv`](rtl/systolic_array_ws.sv) with
+  [`rtl/tb_ws_trace.sv`](rtl/tb_ws_trace.sv), which replays the model's edge
+  inputs from `simulate_ws_stream` (the weights entering each column, the
+  skewed activations entering each row) and prints every register after
+  every edge; the script compares all four registers of every PE (valid bit,
+  2-bit tile tag, value) with the model's frames and reads the results back
+  from each tile's last row. 7 problems, 17,488 values, 0 mismatches; the
+  negative control mismatches in every case. The testbench drives the
+  schedule, so this checks the array, not a controller. For chapter 5's
+  problem it also writes a VCD, which becomes
+  [`rtl/ws_wave.json`](rtl/ws_wave.json), the site's waveform panel; the
+  unit tests require the TypeScript model to agree with it on every register
+  (and to disagree, edge by edge, exactly as Python counts when shifted).
+- **Synthesis**: [`rtl/synth_yosys.py`](rtl/synth_yosys.py) synthesises the
+  PEs, the MAC unit (INT8 only, FP16 only, both), both arrays at 4, 8 and
+  16, and bare multipliers, with Yosys 0.69 (YoWASP, pinned in
+  [`rtl/requirements-synth.txt`](rtl/requirements-synth.txt)) and sv2v
+  0.0.13 for the MAC unit: generic gates (`synth`, `ltp`, `stat -tech
+cmos`) and AMD 7-series (`synth_xilinx`). CI re-runs it and fails if
+  [`rtl/synth.json`](rtl/synth.json) changes.
 - **The PE against its RTL**: the same script builds the author's
   [MAC unit challenge](https://github.com/BrendanJamesLynskey/Interview_RTL_LLM_Accelerators/blob/b37984fc89019d999f6866492433b6cad0977ae8/02_datapath_design/coding_challenges/challenge_02_mac_unit_fp16_int8.sv)
   (vendored unchanged in [`rtl/mac_unit.sv`](rtl/mac_unit.sv),
@@ -281,7 +326,8 @@ simpler.
 ## Local development
 
 - Node ≥ 20.11 and pnpm ≥ 9 (pinned via `packageManager`); Python ≥ 3.10;
-  Verilator 5 for the RTL check.
+  Verilator 5 for the RTL check; `pip install -r rtl/requirements-synth.txt`
+  and [sv2v](https://github.com/zachjs/sv2v) 0.0.13 for the synthesis.
 - No environment variables, no database.
 
 ```bash
@@ -299,6 +345,7 @@ pnpm dev                              # http://localhost:3000
 .venv/bin/python -m pytest tests/python      # against numpy, the timing, the closed forms
 .venv/bin/python scripts/make_fixtures.py    # regenerate the fixtures
 .venv/bin/python rtl/check_rtl.py            # the RTL cross-check (needs verilator)
+.venv/bin/python rtl/synth_yosys.py          # synthesis numbers (yowasp-yosys, sv2v)
 pnpm test                                    # the port must match exactly
 ```
 
@@ -307,6 +354,7 @@ pnpm test                                    # the port must match exactly
 ```bash
 .venv/bin/python -m pytest tests/python   # reference model
 .venv/bin/python rtl/check_rtl.py --check # RTL = model, every edge
+.venv/bin/python rtl/synth_yosys.py --check # synthesis numbers up to date
 pnpm lint && pnpm typecheck && pnpm format:check
 pnpm test:coverage                        # Vitest with thresholds (exact parity included)
 pnpm test:e2e                             # Playwright on a production build (builds first)
@@ -325,7 +373,7 @@ export, then `pnpm smoke`.
 ```
 content/chapters/     The MDX chapters, each opening with its animation
 reference/            The Python models (array, tiles, PE, torus, ONNX lowering) and the ONNX file
-rtl/                  The vendored SystemVerilog array and MAC unit, their trace testbenches, the cross-check
+rtl/                  The SystemVerilog arrays (OS vendored, WS written here) and MAC unit, their trace testbenches, the cross-check, the Yosys synthesis
 scripts/              make_fixtures, smoke-check, capture-screenshots, check_links
 src/app/              Routes: /, /learn, /learn/[slug], /model, /about
 src/lib/sa/           The TypeScript model, the captions, the values the prose quotes
@@ -352,7 +400,8 @@ tests/e2e/            Playwright + axe-core
 ## Contributing
 
 PRs welcome. CI runs the model job (pytest, fixtures up to date, the RTL
-cross-check in Verilator), `format:check`, `lint`, `typecheck`, unit tests
+cross-check in Verilator), the synthesis job (Yosys, `rtl/synth.json` up to
+date), `format:check`, `lint`, `typecheck`, unit tests
 with coverage thresholds, e2e on a production build, and Lighthouse CI
 (performance, accessibility and best practices must each score at least 90
 on `/`, `/model` and every chapter).

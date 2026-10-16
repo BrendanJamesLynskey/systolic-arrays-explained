@@ -7,6 +7,7 @@
  * in words).
  */
 import rtl from "../../../rtl/rtl_check.json";
+import synth from "../../../rtl/synth.json";
 import simfront from "../../../reference/simfront_check.json";
 
 import { int, pct, trim } from "@/lib/format";
@@ -172,6 +173,58 @@ function build(): Record<string, unknown> {
     ops: mops,
     commit: rtl.macSource.commit.slice(0, 7),
   };
+
+  // the weight-stationary array against its RTL (rtl/check_rtl.py, part 3)
+  const wsDemo = rtl.ws.find((c) => c.name === "ws_demo")!;
+  t.wsrtl = {
+    ...rtl.wsTotals,
+    shifted: rtl.wsTotals.mismatchesShifted,
+    demoValues: wsDemo.values,
+    demoEdges: wsDemo.edges,
+    demoShifted: wsDemo.mismatchesShifted,
+    maxTiles: Math.max(...rtl.ws.map((c) => c.tiles)),
+    // every RTL register comparison on the site: OS array + MAC + WS array
+    allValues:
+      rtl.wsTotals.values +
+      rtl.cases.reduce((a, c) => a + c.values, 0) +
+      rtl.mac.reduce((a, c) => a + c.values, 0),
+    allMismatches:
+      rtl.wsTotals.mismatches +
+      rtl.cases.reduce((a, c) => a + c.mismatches, 0) +
+      rtl.mac.reduce((a, c) => a + c.mismatches, 0),
+  };
+
+  // synthesis (rtl/synth_yosys.py): synth.<key without dashes>.<field>
+  const sy: Record<string, unknown> = {
+    yosys: synth.tools.yosys.replace(/ \(git .*\)/, ""),
+    sv2v: synth.tools.sv2v,
+  };
+  for (const d of synth.designs) {
+    sy[d.key.replace(/-/g, "")] = {
+      gates: d.generic.gates,
+      ffs: d.generic.flipFlops,
+      depth: d.generic.depth,
+      transistors: d.generic.transistors,
+      luts: d.xc7.luts,
+      xffs: d.xc7.flipFlops,
+      dsp: d.xc7.dsp48,
+      carry4: d.xc7.carry4,
+    };
+  }
+  const gen = (k: string) => synth.designs.find((d) => d.key === k)!.generic;
+  sy.ratio = {
+    // chapter 6: the multiplier against the square of its width
+    mul11to8: gen("mul-11").gates / gen("mul-8").gates,
+    sq11to8: (11 * 11) / (8 * 8),
+    mul24to8: gen("mul-24").gates / gen("mul-8").gates,
+    sq24to8: (24 * 24) / (8 * 8),
+    fp16toInt8: gen("mac-fp16").transistors / gen("mac-int8").transistors,
+    // the arrays: transistors per PE, and how they scale with n^2
+    ws16PerPe: gen("ws-16").transistors / 256,
+    os16PerPe: gen("os-16").transistors / 256,
+    ws16to4: gen("ws-16").transistors / gen("ws-4").transistors,
+  };
+  t.synth = sy;
 
   // chapter 5
   const S = DEMO.stream;

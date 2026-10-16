@@ -8,6 +8,7 @@ import { expect, test, type Locator } from "@playwright/test";
 
 import fx from "../fixtures/sa_fixtures.json";
 import fb from "../fixtures/sa_fixtures_b.json";
+import rtl from "../../rtl/rtl_check.json";
 
 import { minus } from "@/lib/format";
 import {
@@ -28,6 +29,11 @@ import {
   wordsPerMac,
 } from "@/lib/sa/captionsB";
 import type { Layer, LowerStep } from "@/lib/sa/lower";
+import {
+  WAVE,
+  waveCaption as rtlWaveCaption,
+  type Comparison,
+} from "@/lib/sa/rtlwave";
 import type { PeTrace } from "@/lib/sa/pe";
 import type { StreamTrace } from "@/lib/sa/stream";
 import type { TorusFrame } from "@/lib/sa/torus";
@@ -224,6 +230,45 @@ test("chapter 5: tiles back to back, and buffer bandwidth", async ({
       per[df] = wordsPerMac(rows[s]![df].words, 512 * 1024 * 1024);
     await expect(caption(bw)).toHaveText(
       bandwidthCaption(rows[s]!.array, 512, per),
+    );
+  }
+});
+
+/** The comparison as the Python check recorded it (counts per edge). */
+function pythonComparison(per: number[]): Comparison {
+  return {
+    values: rtl.ws.find((c) => c.name === "ws_demo")!.values,
+    mismatches: per.reduce((a, b) => a + b, 0),
+    bad: per.map((n) => new Set(Array.from({ length: n }, (_, k) => `${k}`))),
+  };
+}
+
+test("chapter 5: the RTL waveform beside the model", async ({ page }) => {
+  await page.goto("/learn/05-tiling");
+  const fig = page.getByTestId("rtl-wave-widget");
+  const svg = fig.locator("svg[data-wave-mismatches]");
+  const demo = rtl.ws.find((c) => c.name === "ws_demo")!;
+  const aligned = pythonComparison(WAVE.mismatchesPerEdge.aligned);
+  await expect(svg).toHaveAttribute("data-wave-mismatches", "0");
+  for (const s of [0, 3, 12, WAVE.edges.length - 1]) {
+    await show(fig, s);
+    await expect(caption(fig)).toHaveText(rtlWaveCaption(WAVE, aligned, s, 0));
+    await expect(fig.locator("[data-wrong]")).toHaveCount(0);
+  }
+  // the negative control: the model one cycle late
+  await change(fig, () =>
+    fig.getByRole("radio", { name: "on (negative control)" }).click(),
+  );
+  await expect(svg).toHaveAttribute(
+    "data-wave-mismatches",
+    String(demo.mismatchesShifted),
+  );
+  const shifted = pythonComparison(WAVE.mismatchesPerEdge.shifted);
+  for (const s of [0, 10, 20]) {
+    await show(fig, s);
+    await expect(caption(fig)).toHaveText(rtlWaveCaption(WAVE, shifted, s, 1));
+    await expect(fig.locator("[data-wrong]")).toHaveCount(
+      WAVE.mismatchesPerEdge.shifted[s]!,
     );
   }
 });

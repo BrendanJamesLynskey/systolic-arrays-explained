@@ -71,3 +71,7 @@ export const LowerWidget = dynamic(() => import("./LowerWidget"), {
   ssr: false,
   loading: loading("animation"),
 });
+export const RtlWaveWidget = dynamic(() => import("./RtlWaveWidget"), {
+  ssr: false,
+  loading: loading("waveform"),
+});
