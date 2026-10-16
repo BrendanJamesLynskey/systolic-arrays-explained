@@ -9,12 +9,13 @@ import Link from "next/link";
 
 import { SECTIONS } from "@/lib/mdx/sections";
 import { KERNELS_URL, TPU_HUB } from "@/lib/site";
+import { withShare } from "@/lib/share";
 
-export const metadata = {
+export const metadata = withShare("/learn", {
   title: "Learn",
   description:
     "Chapters on systolic arrays, each built around an animation driven by the cycle-accurate model.",
-};
+});
 
 export default function LearnIndex(): JSX.Element {
   return (
