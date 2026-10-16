@@ -1,5 +1,7 @@
+import type { Route } from "next";
 import Link from "next/link";
 
+import { CheckedStrip, StartButton } from "@/components/ui/Landing";
 import { HeroWidget } from "@/components/interactive/lazy";
 import { V } from "@/components/mdx/V";
 import { SECTIONS } from "@/lib/mdx/sections";
@@ -21,28 +23,47 @@ export default function HomePage(): JSX.Element {
       <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
         How the hardware multiplies matrices
       </h1>
-      <div className="mt-8 grid items-start gap-8 md:grid-cols-[1fr_minmax(0,24rem)]">
+      <div className="mt-6 grid items-start gap-8 md:grid-cols-[1fr_minmax(0,24rem)]">
         <div>
           <p className="max-w-2xl text-lg text-neutral-600 dark:text-neutral-300">
-            A matrix unit is a grid of multiply-accumulate cells that pass
-            numbers to their neighbours every clock cycle: each operand is
-            fetched from memory once and used by a whole row or column of cells.
-            This site takes that machine apart one cycle at a time: which
-            operand stays put, how the inputs are skewed so everything meets at
-            the right moment, and where the cycles go.
+            An interactive guide to the systolic arrays inside matrix engines,
+            one clock cycle at a time, drawn from a cycle-accurate model.
           </p>
-          <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
-            Every animation is drawn from a cycle-accurate model of the array
-            (Python reference, exact TypeScript port). Its output-stationary
-            frames match a SystemVerilog array simulated in Verilator on every
-            accumulator after every clock edge: <V of="rtl.values" fmt="int" />{" "}
-            values, <V of="rtl.mismatches" fmt="int" /> mismatches.
-          </p>
+          <div className="mt-6">
+            <StartButton href={`/learn/${SECTIONS[0]!.slug}` as Route} />
+          </div>
         </div>
-        <div className="min-w-0">
+        <div data-hero-figure className="min-w-0">
           <HeroWidget testId="hero-home" />
         </div>
       </div>
+      <CheckedStrip href="/about#checked">
+        The cycle-accurate model&apos;s output-stationary frames match a
+        SystemVerilog array simulated in <V of="rtl.simulator" fmt="raw" /> on
+        every accumulator after every clock edge:{" "}
+        <V of="rtl.values" fmt="int" /> values,{" "}
+        <V of="rtl.mismatches" fmt="int" /> mismatches.
+      </CheckedStrip>
+      <section aria-labelledby="learn-heading" className="mt-12">
+        <h2 id="learn-heading" className="text-xl font-semibold tracking-tight">
+          What you&apos;ll learn
+        </h2>
+        <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          A matrix unit is a grid of multiply-accumulate cells that pass numbers
+          to their neighbours every clock cycle: each operand is fetched from
+          memory once and used by a whole row or column of cells. This site
+          takes that machine apart one cycle at a time: which operand stays put,
+          how the inputs are skewed so everything meets at the right moment, and
+          where the cycles go.
+        </p>
+        <p className="mt-4 max-w-2xl text-neutral-600 dark:text-neutral-300">
+          Every animation is drawn from a cycle-accurate model of the array
+          (Python reference, exact TypeScript port). Its output-stationary
+          frames match a SystemVerilog array simulated in Verilator on every
+          accumulator after every clock edge: <V of="rtl.values" fmt="int" />{" "}
+          values, <V of="rtl.mismatches" fmt="int" /> mismatches.
+        </p>
+      </section>
       <nav aria-label="Chapters" className="mt-12 grid gap-4 sm:grid-cols-2">
         {SECTIONS.map((s, i) => (
           <Link

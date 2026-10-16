@@ -18,12 +18,13 @@ import {
   traffic,
 } from "@/lib/sa/model";
 import { MAC_FILE, RTL_FILE, SIMFRONT_URL, repoFile } from "@/lib/site";
+import { withShare } from "@/lib/share";
 
-export const metadata = {
+export const metadata = withShare("/model", {
   title: "The model",
   description:
     "The cycle-accurate systolic-array model: registers, timing and closed forms for weight-, output- and input-stationary dataflows, and its cycle-by-cycle cross-check against a SystemVerilog array in Verilator.",
-};
+});
 
 const A =
   "focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300";

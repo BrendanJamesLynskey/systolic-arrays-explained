@@ -18,12 +18,13 @@ import {
   TPU_HUB,
   repoFile,
 } from "@/lib/site";
+import { withShare } from "@/lib/share";
 
-export const metadata = {
+export const metadata = withShare("/about", {
   title: "About",
   description:
     "How Systolic Arrays Explained's cycle-accurate model is checked against a direct matrix multiply, its own closed forms and a SystemVerilog array in Verilator, and what is illustrative.",
-};
+});
 
 const A =
   "focus-ring rounded text-accent underline underline-offset-2 dark:text-indigo-300";
@@ -95,7 +96,7 @@ export default function AboutPage(): JSX.Element {
           lists its conventions and closed forms.
         </p>
 
-        <h2>How it is checked</h2>
+        <h2 id="checked">How it is checked</h2>
         <ul>
           <li>
             <strong>Against a direct matrix multiply.</strong>{" "}

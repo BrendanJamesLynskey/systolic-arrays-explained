@@ -10,10 +10,11 @@ import type { ReactNode } from "react";
 
 import { SiteHeader } from "@/components/ui/SiteHeader";
 import { SITE_URL } from "@/lib/site";
+import { withShare } from "@/lib/share";
 
 import "./globals.css";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = withShare("/", {
   metadataBase: new URL(SITE_URL),
   title: {
     default: "Systolic Arrays Explained",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
   },
   description:
     "How matrix-multiply hardware works: systolic arrays cycle by cycle in weight-, output- and input-stationary dataflows, skew, tiling, inside a processing element, the TPU, other matrix engines and lowering a graph to the array, each animated by a cycle-accurate model, parts of it checked against RTL.",
-};
+});
 
 export default function RootLayout({
   children,
