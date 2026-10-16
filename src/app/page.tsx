@@ -5,6 +5,7 @@ import { CheckedStrip, StartButton } from "@/components/ui/Landing";
 import { HeroWidget, RtlWaveWidget } from "@/components/interactive/lazy";
 import { V } from "@/components/mdx/V";
 import { SECTIONS } from "@/lib/mdx/sections";
+import { HardwareWork } from "@/components/home/HardwareWork";
 
 const A =
   "focus-ring rounded underline decoration-accent/40 underline-offset-4 hover:decoration-accent";
@@ -115,6 +116,7 @@ export default function HomePage(): JSX.Element {
         </Link>
         .
       </p>
+      <HardwareWork />
       <p className="mt-12 text-sm text-neutral-600 dark:text-neutral-400">
         Part of a family of sixteen companion sites in four tracks, all in the
         site menu above: Foundations (
