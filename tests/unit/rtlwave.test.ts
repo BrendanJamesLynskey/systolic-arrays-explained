@@ -13,6 +13,7 @@ import {
   compareWave,
   laneMismatch,
   lanes,
+  show,
   waveCaption,
   waveModel,
 } from "@/lib/sa/rtlwave";
@@ -59,6 +60,12 @@ describe("RTL waveform panel", () => {
     for (const e of WAVE.edges)
       for (const row of e.pe)
         for (const pe of row) if (pe.sh[0]) expect(B.has(pe.sh[2])).toBe(true);
+  });
+
+  it("prints register values with a true minus sign, empty when not valid", () => {
+    expect(show({ v: -3 })).toBe("\u22123");
+    expect(show({ v: 7 })).toBe("7");
+    expect(show(null)).toBe("");
   });
 
   it("captions report the swaps and the verdict", () => {
