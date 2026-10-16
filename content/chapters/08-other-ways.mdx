@@ -17,15 +17,15 @@ The survey by Sze, Chen, Yang and Emer (2017) sorts accelerators by what stays p
 
 <Layer kind="concept">
 
-**GPU tensor cores.** A GPU does the same matrix multiply with a different machine. Its matrix units are small and many: a warp hands a tensor core whole tiles of $A$ and $B$ from registers through one instruction (`mma.sync` on the A100, `wgmma` on the H100), and the tile's reuse comes from the memory hierarchy, with shared memory and registers holding the tiles the threads load cooperatively from HBM. [GPU Kernels Explained, chapter 7](https://gpu-kernels-explained.vercel.app/learn/07-gemm) builds that GEMM step by step.
+**GPU tensor cores.** A GPU does the same matrix multiply with a different machine. Its matrix units are small and many, and whole tiles of $A$ and $B$ reach a tensor core through one instruction: on the A100 a warp issues `mma.sync` with both tiles in its registers; on the H100 a warpgroup (four warps) issues `wgmma`, which runs asynchronously and takes $B$ from shared memory ($A$ from registers or shared memory); on Blackwell a single thread issues `tcgen05.mma`, which reads shared memory and accumulates in a dedicated Tensor Memory ([PTX ISA](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions)). The tile's reuse comes from the memory hierarchy, with shared memory and registers holding the tiles the threads load cooperatively from HBM. [GPU Kernels Explained, chapter 7](https://gpu-kernels-explained.vercel.app/learn/07-gemm) builds that GEMM step by step.
 
-|               | Systolic matrix unit (TPU MXU)                                     | GPU tensor cores                                            |
-| ------------- | ------------------------------------------------------------------ | ----------------------------------------------------------- |
-| Size          | a few large arrays per core (128 × 128 or 256 × 256)               | many small units, fed by warps                              |
-| Operand reuse | inside the array: each value passes through a row or column of PEs | in registers and shared memory, tile by tile                |
-| Who schedules | the compiler, statically (the array is a fixed pipeline)           | warps, dynamically, with many in flight to hide latency     |
-| Programmed in | whole-graph compilation (XLA)                                      | kernels (CUDA, CUTLASS, Triton)                             |
-| Good at       | large dense matrix multiplies at high utilisation                  | the same, plus irregular work the rest of the GPU does well |
+|               | Systolic matrix unit (TPU MXU)                                     | GPU tensor cores                                                                                                                               |
+| ------------- | ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Size          | a few large arrays per core (128 × 128 or 256 × 256)               | many small units, fed by warps (on Blackwell, one thread issues each MMA and the sums stay in Tensor Memory: a step towards the systolic side) |
+| Operand reuse | inside the array: each value passes through a row or column of PEs | in registers and shared memory, tile by tile                                                                                                   |
+| Who schedules | the compiler, statically (the array is a fixed pipeline)           | warps, dynamically, with many in flight to hide latency                                                                                        |
+| Programmed in | whole-graph compilation (XLA)                                      | kernels (CUDA, CUTLASS, Triton)                                                                                                                |
+| Good at       | large dense matrix multiplies at high utilisation                  | the same, plus irregular work the rest of the GPU does well                                                                                    |
 
 In their usual matrix modes both multiply low-precision inputs (bfloat16, FP16, INT8 and narrower) and accumulate in a wider format (chapter 6).
 

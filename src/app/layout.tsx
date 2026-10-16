@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s · Systolic Arrays Explained",
   },
   description:
-    "How matrix-multiply hardware works: systolic arrays cycle by cycle in weight-, output- and input-stationary dataflows, each animated by a cycle-accurate model checked against RTL.",
+    "How matrix-multiply hardware works: systolic arrays cycle by cycle in weight-, output- and input-stationary dataflows, skew, tiling, inside a processing element, the TPU, other matrix engines and lowering a graph to the array, each animated by a cycle-accurate model, parts of it checked against RTL.",
 };
 
 export default function RootLayout({
