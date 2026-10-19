@@ -7,6 +7,8 @@
 
 <Layer kind="concept">
 
+<span id="s-rs" />
+
 Weight-, output- and input-stationary are named after the one operand each keeps still. Chen, Emer and Sze's **Eyeriss** (ISCA 2016) asked what a dataflow should keep still when the layer is a convolution, where every number is reused several ways at once: each filter weight across every position of the image, each input pixel by every filter tap that overlaps it, each partial sum across every input channel. Their **row-stationary** dataflow keeps a whole row of each, and the animation runs it.
 
 PE$(i, j)$ holds filter row $i$ and works through input row $i + j$, one multiply per cycle: a one-dimensional convolution of two rows. When it finishes an output column it adds the partial row sum handed down by the PE above and passes the total on, so the PEs of column $j$ together add up the filter's rows into output row $j$. Here a <V of="demo.rs.R" fmt="int" /> × <V of="demo.rs.S" fmt="int" /> filter runs over a <V of="demo.rs.H" fmt="int" /> × <V of="demo.rs.W" fmt="int" /> input on <V of="rs.pes" fmt="int" /> PEs: <V of="rs.macs" fmt="int" /> MACs in <V of="rs.cycles" fmt="int" /> cycles, with only <V of="rs.psumHops" fmt="int" /> partial sums passed between PEs for the <V of="rs.outs" fmt="int" /> outputs. Each filter row stays in its PE for the whole run, each input row is shared along a diagonal of PEs (rows $i + j$), and the partial sums move one short hop at a time.
@@ -16,6 +18,8 @@ The survey by Sze, Chen, Yang and Emer (2017) sorts accelerators by what stays p
 </Layer>
 
 <Layer kind="concept">
+
+<span id="s-gpu" />
 
 **GPU tensor cores.** A GPU does the same matrix multiply with a different machine. Its matrix units are small and many, and whole tiles of $A$ and $B$ reach a tensor core through one instruction: on the A100 a warp issues `mma.sync` with both tiles in its registers; on the H100 a warpgroup (four warps) issues `wgmma`, which runs asynchronously and takes $B$ from shared memory ($A$ from registers or shared memory); on Blackwell a single thread issues `tcgen05.mma`, which reads shared memory and accumulates in a dedicated Tensor Memory ([PTX ISA](https://docs.nvidia.com/cuda/parallel-thread-execution/index.html#asynchronous-warpgroup-level-matrix-instructions)). The tile's reuse comes from the memory hierarchy, with shared memory and registers holding the tiles the threads load cooperatively from HBM. [GPU Kernels Explained, chapter 7](https://gpu-kernels-explained.vercel.app/learn/07-gemm) builds that GEMM step by step.
 
@@ -28,6 +32,8 @@ The survey by Sze, Chen, Yang and Emer (2017) sorts accelerators by what stays p
 | Good at       | large dense matrix multiplies at high utilisation                  | the same, plus irregular work the rest of the GPU does well                                                                                    |
 
 In their usual matrix modes both multiply low-precision inputs (bfloat16, FP16, INT8 and narrower) and accumulate in a wider format (chapter 6).
+
+<span id="s-pim" />
 
 **Computing in or near memory.** The survey's section on near-data processing goes further: put the memory on top of the logic (3D-stacked DRAM such as HBM, with an order of magnitude more bandwidth), put logic into the memory's own die, or compute inside the memory array itself. In a resistive crossbar, each weight is a conductance; apply the inputs as voltages and Kirchhoff's current law sums the products along each wire. The survey calls it "the ultimate form of a weight stationary dataflow, as the weights are always held in place". It trades precision for that: analogue computation is sensitive to device variation, and converting between analogue and digital costs energy at every edge of the array. [AI Accelerators Explained, chapter 9](https://ai-accelerators-explained.vercel.app/learn/09-in-memory-compute) puts a real crossbar chip's numbers on it and runs a decoder layer through it.
 
@@ -74,3 +80,68 @@ The convolution is one input channel and one filter of small integers, so every 
 - Kung and Leiserson's original [Systolic arrays (for VLSI)](https://www.eecs.harvard.edu/htk/static/files/1978-cmu-cs-report-kung-leiserson.pdf), CMU report CMU-CS-79-103 (1978), which already multiplied band matrices on a hexagonally connected array.
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s08-q1"
+  n={1}
+  input="number"
+  of="rs.psumHops"
+  fmt="int"
+  tol={0}
+  q="The default row-stationary run: how many partial sums pass between PEs, for all its outputs?"
+  href="#s-rs"
+  more="Row-stationary"
+>
+  <V of="rs.psumHops" fmt="int" />, two for each of the
+  <V of="rs.outs" fmt="int" /> outputs: $(R - 1)EF$. Each output's filter rows
+  are added up down one column of PEs, one short hop at a time.
+</Check>
+
+<Check
+  id="s08-q2"
+  n={2}
+  choices={[
+    "Inside the unit: each value passes along a row of PEs",
+    "From registers and shared memory, tile by tile",
+    "Straight from HBM",
+  ]}
+  answer={1}
+  q="Where does a GPU tensor core get its operand reuse?"
+  href="#s-gpu"
+  more="GPU tensor cores"
+>
+  From the memory hierarchy: warps load tiles into shared memory and registers,
+  and each tile feeds many matrix instructions. A systolic array gets its reuse
+  inside the array.
+</Check>
+
+<Check
+  id="s08-q3"
+  n={3}
+  choices={["Output-stationary", "Weight-stationary", "No local reuse"]}
+  answer={1}
+  q="A resistive crossbar computes inside the memory array. Which dataflow is it the ultimate form of?"
+  href="#s-pim"
+  more="Computing in or near memory"
+>
+  Weight-stationary: each weight is a conductance that never moves. It pays in
+  precision (device variation) and in the energy of converting between analogue
+  and digital at the array's edges.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Row-stationary (Eyeriss) keeps a filter row in each PE, shares input rows along diagonals and passes partial sums one hop at a time.
+- Accelerators sort by what stays put: weights, outputs, rows, or nothing (no local reuse).
+- Tensor cores get their reuse from registers and shared memory; systolic arrays from inside the array.
+- In-memory compute is the ultimate weight-stationary dataflow, at a price in precision and conversion energy.
+
+<Keep>
+  Row-stationary: $R - 1 + FS$ cycles and $(R - 1)EF$ partial-sum hops.
+</Keep>
+
+</Remember>

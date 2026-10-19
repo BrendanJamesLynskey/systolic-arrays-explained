@@ -7,6 +7,8 @@
 
 <Layer kind="concept">
 
+<span id="s-pipeline" />
+
 Every chapter so far drew a PE as a box that multiplies and adds in one cycle. Inside, it is a small pipeline, and this animation is one: the author's mixed-precision MAC unit, a SystemVerilog design with three stages, run cycle by cycle by this site's model of it.
 
 1. **Stage 1** latches the two operands, $a$ (an activation) and $b$ (a weight), with a `valid` bit and a `clear` bit that marks the first term of a new dot product.
@@ -21,9 +23,13 @@ The pipeline is why the arrays in chapters 2 to 5 can run at a high clock rate: 
 
 <Layer kind="concept">
 
+<span id="s-bf16" />
+
 **Why bfloat16 in and FP32 out.** bfloat16 is the top half of an FP32: the same 8-bit exponent, so the same range, but only 7 stored mantissa bits. Google's TPUs multiply in bfloat16 and accumulate in FP32 by default (Google Cloud TPU documentation), and Kalamkar et al. (2019) found that training with bfloat16 tensors reached the same results as FP32 across image, speech, language and recommendation models, in the same number of iterations and with no change of hyperparameters. The narrow mantissa makes the multiplier small (Google's [bfloat16 article](https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus) notes that a multiplier's size scales with the square of the mantissa width) while the wide accumulator keeps the long sums of a matrix multiply accurate. Why a long sum needs the extra bits, and what it does to the error, is chapter 3 of [Numerics Explained](https://numerics-explained.vercel.app/learn/03-accumulation); how formats from INT8 to FP4 map onto hardware is its [chapter 10](https://numerics-explained.vercel.app/learn/10-hardware).
 
 **Checked against the RTL.** The site's Python model of this PE (`reference/pe.py`) is checked against the RTL itself: [`rtl/check_rtl.py`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/check_rtl.py) builds the vendored design in <V of="rtl.simulator" fmt="raw" />, drives <V of="mac.cases" fmt="int" /> sequences (<V of="mac.ops" fmt="int" /> operations, FP16 and INT8, with idle cycles and exponents across FP16's whole normal range), and compares every pipeline register after every clock edge: <V of="mac.values" fmt="int" /> values, <V of="mac.mismatches" fmt="int" /> mismatches. The bfloat16 mode is this site's addition on the same pipeline (the RTL has FP16 and INT8 modes); it is checked against NumPy's float32 arithmetic instead.
+
+<span id="s-gates" />
 
 **What it costs in gates.** The square law is easy to test on real logic. [`rtl/synth_yosys.py`](https://github.com/BrendanJamesLynskey/systolic-arrays-explained/blob/main/rtl/synth_yosys.py) synthesises a bare unsigned multiplier with Yosys <V of="synth.yosys" fmt="raw" /> to generic gates: 8 × 8 bits (bfloat16's significand, with its hidden bit) takes <V of="synth.mul8.gates" fmt="int" /> gates, 11 × 11 (FP16's) takes <V of="synth.mul11.gates" fmt="int" />, <V of="synth.ratio.mul11to8" fmt="num" /> times as many against $(11/8)^2 =$ <V of="synth.ratio.sq11to8" fmt="num" />, and 24 × 24 (FP32's) takes <V of="synth.mul24.gates" fmt="int" />, <V of="synth.ratio.mul24to8" fmt="num" /> times against <V of="synth.ratio.sq24to8" fmt="num" />: a little faster than the square, because the adder tree also gets deeper. The whole MAC unit tells the same story. With its mode pin tied so only one datapath survives, the INT8 PE is about <V of="synth.macint8.transistors" fmt="int" /> transistors in Yosys's CMOS estimate and the FP16 PE (multiplier, alignment, normalisation and rounding) about <V of="synth.macfp16.transistors" fmt="int" />, <V of="synth.ratio.fp16toInt8" fmt="num" /> times as much. These are gate counts and an area proxy, not a placed design; the [model page](/model#synthesis) has the flow and every number.
 
@@ -89,3 +95,64 @@ The operands are random normal numbers with small exponents (bfloat16 exponents 
 - New to training? [Training, chapter 9: mixed precision](https://transformer-training-explained.vercel.app/training/09-mixed-precision) (the Training site, in the Foundations track): why training multiplies in bfloat16 but accumulates and keeps its master weights in FP32.
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s06-q1"
+  n={1}
+  choices={["In the multiplier", "Only in the adder, once per add", "In both"]}
+  answer={1}
+  q="A PE multiplies two bfloat16 numbers and accumulates in FP32. Where does it round?"
+  href="#s-pipeline"
+  more="Inside the PE"
+>
+  Only in the adder. Two 8-bit significands multiply into at most 16 bits, which
+  FP32's 24-bit significand holds exactly; the sum is rounded once, to nearest,
+  ties to even.
+</Check>
+
+<Check
+  id="s06-q2"
+  n={2}
+  input="number"
+  of="synth.ratio.mul11to8"
+  q="Synthesised with Yosys, how many times as many gates is an 11 × 11 multiplier (FP16's significand) as an 8 × 8 one (bfloat16's)?"
+  href="#s-gates"
+  more="What it costs in gates"
+>
+  <V of="synth.ratio.mul11to8" fmt="num" />, a little more than the square law's
+  $(11/8)^2 =$ <V of="synth.ratio.sq11to8" fmt="num" />, because the adder tree
+  also gets deeper.
+</Check>
+
+<Check
+  id="s06-q3"
+  n={3}
+  choices={[
+    "Three cycles per MAC",
+    "Nothing per MAC: a new pair enters every cycle; it adds latency only",
+    "One extra cycle per dot product",
+  ]}
+  answer={1}
+  q="A product reaches the accumulator three cycles after its operands arrive. What does that three-stage pipeline cost?"
+  href="#s-pipeline"
+  more="Inside the PE"
+>
+  Latency, not throughput: each stage does a third of the work, so the clock can
+  be faster, and a new pair of operands still enters every cycle. Two dot
+  products run back to back with no bubble.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A PE is a small pipeline: latch the operands, multiply, accumulate.
+- bfloat16 × bfloat16 is exact in FP32: the only rounding is in the add.
+- bfloat16 keeps FP32's 8-bit exponent (its range) with 7 mantissa bits; a multiplier grows about as the square of the mantissa width.
+- Pipelining adds latency but not cost per MAC.
+
+<Keep>Multiply narrow, accumulate wide: bfloat16 in, FP32 out.</Keep>
+
+</Remember>

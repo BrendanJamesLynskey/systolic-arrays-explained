@@ -4,6 +4,8 @@
 
 A neural network spends almost all of its arithmetic in matrix multiplies: $C = AB$, where every output $c_{mn}$ is a dot product of a row of $A$ and a column of $B$. The multiplications are cheap to build. Feeding them is not: fetching an 8-bit operand from a large on-chip memory costs far more energy than multiplying it, and an off-chip memory cannot deliver operands nearly as fast as a chip full of multipliers can consume them. This is the **memory wall**.
 
+<span id="s-kung" />
+
 H. T. Kung's answer, set out with Charles Leiserson in 1978 and argued in his 1982 paper _Why systolic architectures?_, is to fetch each number **once** and then pass it from one processing element (PE) to its neighbour, every clock cycle, like blood pumped through a body (hence _systolic_). Each PE does one multiply-accumulate (MAC) per cycle on whatever arrives and passes the operands on. Only the PEs on the edges talk to memory; every wire inside the array is short and connects two neighbours.
 
 The animation above is the model's weight-stationary array, the arrangement in the first TPU. Weights (vermillion) sit in the PEs; activations (blue) enter from the left and step right one PE per cycle; partial sums (sky) step down one PE per cycle, picking up one product in each PE; finished results (purple) leave from the bottom. Its <V of="demo.hero.M" fmt="int" /> × <V of="demo.hero.K" fmt="int" /> by <V of="demo.hero.K" fmt="int" /> × <V of="demo.hero.N" fmt="int" /> multiply takes <V of="hero.cycles" fmt="int" /> cycles, including loading the weights. Chapter 2 runs the same machine with every register's value on screen.
@@ -19,7 +21,11 @@ The animation above is the model's weight-stationary array, the arrangement in t
 
 <Layer kind="concept">
 
+<span id="s-reuse" />
+
 The second animation makes the argument with numbers. A memory delivers $\beta$ words per cycle to a grid of $n \times n$ multipliers. If every MAC fetches its own two operands, at most $\beta/2$ MACs can run per cycle however many multipliers you build: with $\beta =$ <V of="demo.beta" fmt="int" /> and a <V of="reuse.n" fmt="int" /> × <V of="reuse.n" fmt="int" /> grid, <V of="reuse.naive" fmt="int" /> of its <V of="reuse.peak" fmt="int" /> multipliers are busy (<V of="reuse.naiveShare" fmt="pct" />). In a systolic array a word entering at the left edge is used by every PE along its row, and a word entering at the top by every PE down its column, so the whole grid needs only $2n =$ <V of="reuse.words" fmt="int" /> words per cycle and all <V of="reuse.sys" fmt="int" /> MACs run.
+
+<span id="s-intensity" />
 
 The ratio of MACs to words fetched, the **arithmetic intensity** at the array's edge, grows as $n/2$: <V of="reuse.perWord" fmt="int" /> MACs per word at $n = 16$. That is why matrix units are big. The first TPU's matrix unit is a 256 × 256 grid of 65,536 8-bit MACs (Jouppi et al., 2017), so each operand that enters it is used 256 times.
 
@@ -77,3 +83,70 @@ The memory bandwidths ($\beta$ = 8, 32 and 128 words per cycle) are round number
 - Jouppi et al., [In-datacenter performance analysis of a tensor processing unit](https://arxiv.org/abs/1704.04760), ISCA 2017, section 2: "the matrix unit uses systolic execution to save energy by reducing reads and writes of the Unified Buffer".
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s01-q1"
+  n={1}
+  input="number"
+  of="reuse.naive"
+  fmt="int"
+  tol={0}
+  q="A memory delivers 32 words per cycle to a 16 × 16 grid of multipliers, and every MAC fetches its own two operands. How many of the 256 multipliers can be busy?"
+  href="#s-reuse"
+  more="The memory wall, in numbers"
+>
+  <V of="reuse.naive" fmt="int" />, whatever the grid's size: two words per MAC
+  caps the rate at $\beta / 2$, so <V of="reuse.naiveShare" fmt="pct" /> of the
+  multipliers work.
+</Check>
+
+<Check
+  id="s01-q2"
+  n={2}
+  input="number"
+  of="reuse.words"
+  fmt="int"
+  tol={0}
+  q="Build the same grid as a systolic array. How many words per cycle must it read to keep all 256 MACs busy?"
+  href="#s-reuse"
+  more="The memory wall, in numbers"
+>
+  <V of="reuse.words" fmt="int" />, $2n$: one word per row at the left edge and
+  one per column at the top, each used by every PE it passes. The same memory
+  now feeds all <V of="reuse.sys" fmt="int" /> MACs.
+</Check>
+
+<Check
+  id="s01-q3"
+  n={3}
+  choices={[
+    "Each operand that enters is used 256 times: the intensity at the edge grows as n/2",
+    "Bigger arrays run at a higher clock rate",
+    "Smaller arrays cannot multiply 8-bit numbers",
+  ]}
+  answer={0}
+  q="Why is the first TPU's matrix unit as large as 256 × 256?"
+  href="#s-intensity"
+  more="Arithmetic intensity at the edge"
+>
+  An $n \times n$ array does $n^2$ MACs on $2n$ words a cycle, $n/2$ MACs per
+  word read: the bigger the array, the less memory bandwidth each MAC needs.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- The memory wall: feeding multipliers costs more, in energy and bandwidth, than building them.
+- A systolic array fetches each number once and passes it to a neighbour every cycle; only the edges touch memory.
+- An $n \times n$ array reads $2n$ words a cycle for $n^2$ MACs: $n/2$ MACs per word.
+- The sustainable rate is $\min(n^2, \beta n/2)$: a roofline with the array's edge as the memory.
+
+<Keep>
+  At the edge an $n \times n$ array does $n/2$ MACs per word read:{" "}
+  <V of="reuse.perWord" fmt="int" /> at $n = 16$, 128 for the first TPU.
+</Keep>
+
+</Remember>

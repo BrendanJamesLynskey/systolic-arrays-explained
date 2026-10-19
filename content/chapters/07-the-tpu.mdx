@@ -7,7 +7,11 @@
 
 <Layer kind="concept">
 
+<span id="s-allreduce" />
+
 A TPU pod is many chips joined by **inter-chip interconnect** (ICI) links into a torus: a grid whose rows and columns wrap around, so every chip has a neighbour in each direction. Training spreads a model across the chips, and after every step the chips must agree on the summed gradients: an **all-reduce**. The animation runs one on <V of="torus.chips" fmt="int" /> chips in a <V of="torus.X" fmt="int" /> × <V of="torus.Y" fmt="int" /> torus, each holding a vector of <V of="torus.chips" fmt="int" /> numbers (one cell per number, darker as it sums more chips' values).
+
+<span id="s-dims" />
 
 It goes dimension by dimension. **Reduce-scatter along x:** in each row (an x-ring), every chip passes a quarter of its vector to its +x neighbour, which adds it to its own; after $X - 1$ steps each chip owns one quarter summed over its row. **Reduce-scatter along y** does the same down the columns, inside that quarter, until each chip holds one number summed over all <V of="torus.chips" fmt="int" /> chips (outlined). **All-gather along y, then x** passes the finished numbers back round the same rings, copying instead of adding. The whole thing takes <V of="torus.steps" fmt="int" /> steps; one ring through all <V of="torus.chips" fmt="int" /> chips would take <V of="torus.ring" fmt="int" />, though each chip sends the same <V of="torus.perChip" fmt="int" /> numbers either way. The torus wins on the number of steps, and each step's fixed cost (link latency, synchronisation) is paid fewer times: for a 16 × 16 pod, <V of="torus.big" fmt="int" /> steps against <V of="torus.bigRing" fmt="int" />.
 
@@ -18,6 +22,8 @@ This is the textbook version: data moves in one direction round each ring, and o
 <TpuDiagram />
 
 <Layer kind="concept">
+
+<span id="s-chip" />
 
 **Inside one chip.** Google describes each TensorCore as "one or more matrix-multiply units (MXUs), a vector unit, and a scalar unit". An MXU is a systolic array of multiply-accumulators, 128 × 128 in the TPU versions before v6e and 256 × 256 in v6e and later, multiplying bfloat16 and accumulating in FP32 (chapter 6). The vector unit does the elementwise work (activation functions, normalisation, the softmax); the scalar unit runs the control flow. Data reaches them from high-bandwidth memory (HBM) beside the die, through on-chip memory that software manages explicitly (VMEM, in the terms of JAX's [Pallas TPU documentation](https://docs.jax.dev/en/latest/pallas/tpu/details.html)).
 
@@ -68,3 +74,71 @@ The vectors are small integers (one per chip per cell) so the picture stays read
 - New to training? [Training, chapter 11: data parallelism](https://transformer-training-explained.vercel.app/training/11-data-parallelism) (the Training site, in the Foundations track): the ring all-reduce that sums every worker's gradients each step, animated on a real model's gradients.
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s07-q1"
+  n={1}
+  input="number"
+  of="torus.steps"
+  fmt="int"
+  tol={0}
+  q="An all-reduce on a 4 × 4 torus, one dimension at a time: how many steps?"
+  href="#s-dims"
+  more="Dimension by dimension"
+>
+  <V of="torus.steps" fmt="int" />: reduce-scatter along $x$ and $y$, then
+  all-gather back, $2(X - 1) + 2(Y - 1)$. One ring through all 16 chips would
+  take <V of="torus.ring" fmt="int" />.
+</Check>
+
+<Check
+  id="s07-q2"
+  n={2}
+  choices={[
+    "More: the torus sends everything twice",
+    "The same amount",
+    "Less: a quarter as much",
+  ]}
+  answer={1}
+  q="Compared with one ring through all 16 chips, how much data does each chip send in the torus all-reduce?"
+  href="#s-dims"
+  more="Dimension by dimension"
+>
+  The same, <V of="torus.perChip" fmt="int" /> numbers here: $2D(XY - 1)/(XY)$,
+  the minimum for any all-reduce. The torus wins on the number of steps, so each
+  step's fixed cost is paid fewer times.
+</Check>
+
+<Check
+  id="s07-q3"
+  n={3}
+  input="number"
+  of="torus.big"
+  fmt="int"
+  tol={0}
+  q="And for a 16 × 16 pod: how many steps does the torus all-reduce take?"
+  href="#s-dims"
+  more="Dimension by dimension"
+>
+  <V of="torus.big" fmt="int" />, against <V of="torus.bigRing" fmt="int" /> for
+  one ring, <V v="ch07.ringOverTorus" fmt="num" /> times fewer: the latency term
+  is $2(X + Y - 2)\alpha$ instead of $2(XY - 1)\alpha$.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A pod joins chips with ICI links into a torus; the wrap-around links make every row and column a ring.
+- An all-reduce is a reduce-scatter then an all-gather, one dimension at a time.
+- The torus sends as much per chip as one big ring, in far fewer steps.
+- A TensorCore is matrix units (systolic, bfloat16 in, FP32 out), a vector unit and a scalar unit.
+
+<Keep>
+  Torus latency term $2(X + Y - 2)\alpha$, ring $2(XY - 1)\alpha$: the same
+  bytes, far fewer steps.
+</Keep>
+
+</Remember>
