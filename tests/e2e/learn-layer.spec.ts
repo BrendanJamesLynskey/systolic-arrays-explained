@@ -133,3 +133,11 @@ test("with no JavaScript the question and the answer are in the page", async ({
   );
   await ctx.close();
 });
+
+test("the landing page links the Hardware start page", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator("[data-track-start] a")).toHaveAttribute(
+    "href",
+    "https://gpu-kernels-explained.vercel.app/hardware",
+  );
+});

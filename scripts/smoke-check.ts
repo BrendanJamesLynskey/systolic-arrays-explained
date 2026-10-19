@@ -25,7 +25,7 @@ import { lookup } from "@/lib/sa/values";
 /** The author credit: the last line of the About page (brief 35). */
 const CREDIT = [
   'data-author-credit="true">Built by',
-  'href="https://github.com/BrendanJamesLynskey">Brendan Lynskey</a>',
+  'href="https://brendanjameslynskey.github.io/">Brendan Lynskey</a>',
 ];
 
 type Result = { path: string; ok: boolean; detail: string };
