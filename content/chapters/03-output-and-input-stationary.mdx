@@ -7,11 +7,15 @@
 
 <Layer kind="concept">
 
+<span id="s-three" />
+
 Chapter 2 held the weights still. That is one of three choices for a matrix multiply, each named after the operand that stays put in each PE (the names come from Chen, Emer and Sze's taxonomy for the Eyeriss accelerator, which adds row-stationary for convolutions; SCALE-Sim, a systolic-array simulator, uses these three for matrix multiplies):
 
 - **Weight-stationary** (WS): $B$ stays; $A$ streams in from the left; partial sums move down. A $K \times N$ block of PEs.
 - **Output-stationary** (OS): $C$ stays. $a_{mk}$ enters row $m$ from the left and $b_{kn}$ enters column $n$ from the top, both skewed, and they meet in PE$(m, n)$ at cycle $k + m + n$, which adds their product to its own accumulator. Nothing but 8-bit operands moves until the end, when the finished results drain out. An $M \times N$ block.
 - **Input-stationary** (IS): $A$ stays (PE$(k, m)$ holds $a_{mk}$); the columns of $B$ stream in from the left; partial sums move down. It is weight-stationary on the transposed problem $C^\top = B^\top A^\top$. A $K \times M$ block.
+
+<span id="s-counts" />
 
 The animation runs all three on the same <V of="demo.cmp.M" fmt="int" /> × <V of="demo.cmp.K" fmt="int" /> by <V of="demo.cmp.K" fmt="int" /> × <V of="demo.cmp.N" fmt="int" /> problem on one clock, and counts what each moves. When the problem fits the array, all three read every element of $A$ and $B$ from the buffers exactly once (<V of="cmp.ws.reads" fmt="int" /> reads) and write each result once (<V of="cmp.ws.writes" fmt="int" />), and all three make the same number of PE-to-PE hops (<V of="cmp.ws.hops" fmt="int" />). The difference is **what** hops. WS and IS pass a partial sum down at every hop between rows: <V of="cmp.ws.psumHops" fmt="int" /> partial-sum hops here. OS keeps its sums in place and moves them only when draining: <V of="cmp.os.psumHops" fmt="int" />. That matters because partial sums are wide: 8-bit operands accumulate into 32-bit sums. At 128 × 128 × 128, WS moves <V of="big.ws.bits" fmt="int" /> bits between PEs and OS <V of="big.os.bits" fmt="int" />, though OS writes its accumulator registers more often (<V of="big.os.regWrites" fmt="int" /> register writes against <V of="big.ws.regWrites" fmt="int" />).
 
@@ -82,3 +86,75 @@ The bit counts assume 8-bit operands and 32-bit partial sums (INT8 multiply, INT
 - Chen, Emer and Sze, [Eyeriss: a spatial architecture for energy-efficient dataflow for convolutional neural networks](https://doi.org/10.1109/ISCA.2016.40), ISCA 2016 (the dataflow taxonomy, and row-stationary); Sze, Chen, Yang and Emer, [Efficient processing of deep neural networks: a tutorial and survey](https://arxiv.org/abs/1703.09039), 2017; Genc et al., [Gemmini](https://arxiv.org/abs/1911.09925), 2019, a generator for systolic arrays that supports both weight- and output-stationary; Samajdar et al., [SCALE-Sim: systolic CNN accelerator simulator](https://arxiv.org/abs/1811.02883), 2018, which models output-, weight- and input-stationary arrays.
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s03-q1"
+  n={1}
+  choices={[
+    "Weight-stationary",
+    "Output-stationary",
+    "All three read the same: every element of A and B once",
+  ]}
+  answer={2}
+  q="When the problem fits the array, which dataflow reads the fewest words from the buffers?"
+  href="#s-counts"
+  more="What each dataflow moves"
+>
+  None: all three read every element of $A$ and $B$ once, which is
+  <V of="cmp.ws.reads" fmt="int" /> reads here, and write each result once. They
+  differ in what moves between PEs.
+</Check>
+
+<Check
+  id="s03-q2"
+  n={2}
+  input="number"
+  of="cmp.ws.psumHops"
+  fmt="int"
+  tol={0}
+  q="On the default problem, how many partial-sum hops does weight-stationary make between PEs?"
+  href="#s-counts"
+  more="What each dataflow moves"
+>
+  <V of="cmp.ws.psumHops" fmt="int" />, against
+  <V of="cmp.os.psumHops" fmt="int" /> for output-stationary, which moves its
+  sums only to drain them. Both make <V of="cmp.ws.hops" fmt="int" /> hops in
+  all; what hops differs, and a 32-bit partial sum is four times as wide as an
+  8-bit operand.
+</Check>
+
+<Check
+  id="s03-q3"
+  n={3}
+  choices={[
+    "Output-stationary with the drain removed",
+    "Weight-stationary on the transposed problem, Cᵀ = BᵀAᵀ",
+    "A row-stationary array",
+  ]}
+  answer={1}
+  q="Input-stationary is the same machine as which other one?"
+  href="#s-three"
+  more="The three dataflows"
+>
+  Weight-stationary on $C^\top = B^\top A^\top$: holding $A$ still while the
+  columns of $B$ stream through is weight-stationary with the roles of the two
+  matrices swapped.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- Three dataflows, named after what stays in the PE: weights (WS), outputs (OS) or inputs (IS).
+- When the problem fits, all three read $A$ and $B$ once and write $C$ once.
+- What moves differs: WS and IS pass wide partial sums down every row; OS moves its sums only to drain.
+- When the problem does not fit, the dataflow decides what is tiled, what is re-read and where split partial sums go.
+
+<Keep>
+  At 128 × 128 × 128, weight-stationary moves <V of="big.ws.bits" fmt="int" />
+  bits between PEs, output-stationary <V of="big.os.bits" fmt="int" />.
+</Keep>
+
+</Remember>

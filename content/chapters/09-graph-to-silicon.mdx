@@ -9,13 +9,19 @@
 
 A model arrives at an accelerator as a graph of operators, here an ONNX file of four nodes: a convolution, a ReLU, a flatten and a fully connected (Gemm) layer. Before any of it can run on a systolic array, a compiler must **lower** each node to what the hardware does: matrix multiplies for the array, elementwise work for the vector unit, and nothing at all for operations that only reshape.
 
+<span id="s-im2col" />
+
 **The convolution becomes a GEMM.** The trick is **im2col**: for every output pixel, copy the patch of input it sees (every channel, the whole $R \times S$ window) into one row of a matrix $A$. Flatten each filter into one column of $B$. Then the convolution is $A B$: row $p$ of $A$ times column $f$ of $B$ is output pixel $p$ of filter $f$. For this model's <V of="lower.conv.M" fmt="int" /> output pixels, 3 input channels and 3 × 3 filters that is a <V of="lower.conv.M" fmt="int" /> × <V of="lower.conv.K" fmt="int" /> by <V of="lower.conv.K" fmt="int" /> × <V of="lower.conv.N" fmt="int" /> GEMM. The animation builds $A$ one row at a time; the copying costs memory (each input pixel appears in up to 9 rows) but turns the convolution into the one thing the array does well. The site runs this GEMM on its cycle-accurate array and the tests check it against a direct convolution, number for number.
+
+<span id="s-tiles" />
 
 **The GEMMs become tiles.** On an <V of="lower.array" fmt="int" /> × <V of="lower.array" fmt="int" /> array the convolution's $K =$ <V of="lower.conv.K" fmt="int" /> needs <V of="lower.conv.tiles" fmt="int" /> weight tiles, run back to back as in chapter 5: <V of="lower.conv.stream" fmt="int" /> cycles, <V of="lower.conv.util" fmt="pct0" /> of the array busy. The fully connected layer is the opposite case. Its input is a single row (one image), so every one of its <V of="lower.fc.tiles" fmt="int" /> weight tiles is loaded to multiply one row of $A$: <V of="lower.fc.stream" fmt="int" /> cycles and <V of="lower.fc.util" fmt="pct" /> busy, waiting on weight loads. This is the batch-of-one problem of LLM decoding in miniature, and why accelerators batch requests. ReLU's <V of="lower.relu" fmt="int" /> elements go to the vector unit; Flatten moves no data.
 
 </Layer>
 
 <Layer kind="concept">
+
+<span id="s-approx" />
 
 **Three ways to count the cycles.** The bars under the animation give three numbers for each array layer. _Back to back_ is this site's cycle-accurate model with double-buffered weights (chapter 5). _In sequence_ runs the same tiles one after another (chapter 4): <V of="lower.conv.seqWs" fmt="int" /> cycles for the convolution. _Approximate_ is the formula in the author's [Torch_Sim_Frontend](https://github.com/BrendanJamesLynskey/Torch_Sim_Frontend), a fast event-driven model of a whole accelerator (DMA, buffers, array, vector unit), which charges an output-stationary array $k$ cycles per block of outputs plus one fill and drain: <V of="lower.conv.approx" fmt="int" /> cycles for the convolution, <V of="lower.fc.approx" fmt="int" /> for the fully connected layer.
 
@@ -72,3 +78,79 @@ The model is tiny (a 3 × 8 × 8 input, 8 filters, 10 outputs) and its weights a
 - Batching and its effect on utilisation in LLM serving: [LLM Inference Explained, chapter 4](https://llm-inference-explained.vercel.app/learn/04-batching).
 
 </Callout>
+
+<CheckYourself>
+
+<Check
+  id="s09-q1"
+  n={1}
+  choices={[
+    "The number of output pixels",
+    "Input channels × R × S: every value in one window",
+    "The number of filters",
+  ]}
+  answer={1}
+  q="im2col turns the convolution into a GEMM. What is its K?"
+  href="#s-im2col"
+  more="The convolution becomes a GEMM"
+>
+  $K = C_{\text{in}} R S$, <V of="lower.conv.K" fmt="int" /> here: each row of
+  $A$ is one output pixel's whole window, across every channel, and each column
+  of $B$ one flattened filter.
+</Check>
+
+<Check
+  id="s09-q2"
+  n={2}
+  input="slider"
+  min={0}
+  max={100}
+  step={1}
+  of="lower.fc.util"
+  fmt="pct"
+  abs={3}
+  q="The fully connected layer, on one image: what share of the array is busy?"
+  href="#s-tiles"
+  more="The GEMMs become tiles"
+>
+  <V of="lower.fc.util" fmt="pct" />: every one of its
+  <V of="lower.fc.tiles" fmt="int" /> weight tiles is loaded to multiply a
+  single row of $A$, so the array waits on weight loads. It is the batch-of-one
+  problem of LLM decoding in miniature.
+</Check>
+
+<Check
+  id="s09-q3"
+  n={3}
+  choices={[
+    "On the fully connected layer",
+    "On the convolution: it overlaps every tile's fill and drain, which the in-sequence count pays for",
+    "Nowhere: they agree exactly",
+  ]}
+  answer={1}
+  q="Where does the one-line approximate cycle formula disagree most with the cycle-accurate counts?"
+  href="#s-approx"
+  more="Three ways to count the cycles"
+>
+  On the convolution: <V of="lower.conv.approx" fmt="int" /> cycles against
+  <V of="lower.conv.seqWs" fmt="int" /> in sequence. On the fully connected
+  layer it is within a few per cent: <V of="lower.fc.approx" fmt="int" /> cycles
+  against <V of="lower.fc.seqOs" fmt="int" /> for output-stationary tiles in
+  sequence.
+</Check>
+
+</CheckYourself>
+
+<Remember>
+
+- A compiler lowers each node: GEMMs to the array, elementwise work to the vector unit, reshapes to nothing.
+- im2col turns a convolution into a GEMM with $M$ = output pixels, $K = C_{\text{in}} R S$, $N$ = filters.
+- A batch of one leaves a big array waiting on weight loads.
+- A one-line performance model runs whole networks fast; checking it against a cycle-accurate model measures its error.
+
+<Keep>
+  $T \approx \text{batch} \cdot \lceil M/R \rceil \cdot \lceil N/C \rceil \cdot
+  K + R + C$ per GEMM, the fast model's estimate.
+</Keep>
+
+</Remember>
